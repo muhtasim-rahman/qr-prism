@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Studio Pro – Advanced QR Code Generator</title>
+
+  <!-- CDN Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- App Stylesheet -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     NAVBAR
+═══════════════════════════════════════ -->
+<nav class="navbar">
+  <div class="nav-logo">
+    <i class="fa-solid fa-qrcode"></i>
+    <div>
+      <span class="nav-title">QR Studio Pro</span>
+      <span class="nav-sub">Professional QR Generator</span>
+    </div>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-mode="gen" onclick="switchMode('gen',this)">
+      <i class="fa-solid fa-wand-magic-sparkles"></i><span>Generator</span>
+    </button>
+    <button class="nav-tab" data-mode="scan" onclick="switchMode('scan',this)">
+      <i class="fa-solid fa-camera"></i><span>Scanner</span>
+    </button>
+    <button class="nav-tab" data-mode="batch" onclick="switchMode('batch',this)">
+      <i class="fa-solid fa-layer-group"></i><span>Batch</span>
+    </button>
+    <button class="nav-tab" data-mode="hist" onclick="switchMode('hist',this)">
+      <i class="fa-solid fa-clock-rotate-left"></i><span>History</span>
+    </button>
+  </div>
+
+  <div class="nav-right">
+    <button class="icon-btn" id="dark-btn" onclick="toggleDark()" title="Toggle Dark Mode">
+      <i class="fa-solid fa-moon" id="dark-icon"></i>
+    </button>
+    <button class="icon-btn" onclick="openModal('kb-modal')" title="Keyboard Shortcuts">
+      <i class="fa-solid fa-keyboard"></i>
+    </button>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════
+     GENERATOR MODE
+═══════════════════════════════════════ -->
+<div id="mode-gen" class="app-layout">
+
+  <!-- ── LEFT: SETTINGS PANEL ── -->
+  <div class="settings-panel" id="settings-panel">
+
+    <!-- QR TYPE TABS -->
+    <div class="card">
+      <div class="card-body" style="padding:12px 16px;">
+        <div class="type-tabs-wrap" id="type-tabs">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- INPUT FORM -->
+    <div class="card">
+      <div class="card-header open" onclick="toggleCard(this)">
+        <i class="fa-solid fa-pencil ch-icon"></i>
+        <span id="form-title">URL</span>
+        <i class="fa-solid fa-chevron-down arrow"></i>
+      </div>
+      <div class="card-body">
+        <div class="form-fields" id="form-fields">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- OPTIONS -->
+    <div class="card">
+      <div class="card-header open" onclick="toggleCard(this)">
+        <i class="fa-solid fa-sliders ch-icon"></i>
+        <span>Options</span>
+        <i class="fa-solid fa-chevron-down arrow"></i>
+      </div>
+      <div class="card-body" id="opts-body">
+        <div class="opts-row">
+          <div class="opts-col">
+            <div class="field-label">Size <span class="tip" data-tip="Output size in pixels">ⓘ</span></div>
+            <div class="num-wrap">
+              <button class="num-btn" onclick="adjSize(-50)">−</button>
+              <input type="number" id="qr-size" value="600" min="100" max="2000"
+                     oninput="S.size=parseInt(this.value)||600; schedRender()">
+              <button class="num-btn" onclick="adjSize(50)">+</button>
+            </div>
+            <div class="size-chips">
+              <button class="chip" onclick="setSize(512)">512</button>
+              <button class="chip" onclick="setSize(1024)">1K</button>
+              <button class="chip" onclick="setSize(2048)">2K</button>
+            </div>
+          </div>
+          <div class="opts-col">
+            <div class="field-label">Precision <span class="tip" data-tip="Error correction level">ⓘ</span></div>
+            <select class="select" id="ec-level" onchange="S.ec=this.value; schedRender()">
+              <option value="L">L – Low (7%)</option>
+              <option value="M">M – Medium (15%)</option>
+              <option value="Q">Q – Quartile (25%)</option>
+              <option value="H" selected>H – Best (30%)</option>
+            </select>
+          </div>
+        </div>
+        <div class="slider-row" style="margin-top:14px;">
+          <span class="s-label">Quiet Zone</span>
+          <input type="range" class="range" id="qz-slider" min="0" max="10" value="4"
+                 oninput="S.qz=parseInt(this.value); document.getElementById('qz-val').textContent=this.value+' mod'; schedRender()">
+          <span class="s-val" id="qz-val">4 mod</span>
+        </div>
+        <div class="toggle-row">
+          <label>Improve Scanability</label>
+          <label class="toggle">
+            <input type="checkbox" id="scan-opt" onchange="S.scanOpt=this.checked; schedRender()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLORS -->
+    <div class="card">
+      <div class="card-header open" onclick="toggleCard(this)">
+        <i class="fa-solid fa-palette ch-icon"></i>
+        <span>Colors</span>
+        <i class="fa-solid fa-chevron-down arrow"></i>
+      </div>
+      <div class="card-body">
+        <div class="color-tabs" id="color-tabs">
+          <button class="ctab active" onclick="switchCTab(0,this)" title="Foreground / Background">
+            <i class="fa-solid fa-circle"></i>
+          </button>
+          <button class="ctab" onclick="switchCTab(1,this)" title="Marker Colors">
+            <i class="fa-solid fa-qrcode"></i>
+          </button>
+          <button class="ctab" onclick="switchCTab(2,this)" title="Eye Frame Color">
+            <i class="fa-solid fa-circle-half-stroke"></i>
+          </button>
+          <button class="ctab" onclick="switchCTab(3,this)" title="Eye Inner Color">
+            <i class="fa-regular fa-circle"></i>
+          </button>
+        </div>
+
+        <!-- Tab 0: Foreground / Background -->
+        <div class="csub active" id="ctab-0">
+          <div class="color-row">
+            <span class="c-label">Foreground</span>
+            <div class="color-input-group">
+              <div class="color-swatch" id="fg-sw" style="background:#000000;">
+                <input type="color" id="fg-color" value="#000000" oninput="syncColor('fg',this.value)">
+              </div>
+              <input class="hex-in" id="fg-hex" value="#000000" oninput="syncHex('fg',this.value)">
+            </div>
+          </div>
+          <div class="color-row">
+            <span class="c-label">Background</span>
+            <div class="color-input-group">
+              <div class="color-swatch" id="bg-sw" style="background:#ffffff;">
+                <input type="color" id="bg-color" value="#ffffff" oninput="syncColor('bg',this.value)">
+              </div>
+              <input class="hex-in" id="bg-hex" value="#ffffff" oninput="syncHex('bg',this.value)">
+            </div>
+          </div>
+          <div class="toggle-row">
+            <label>Transparent Background</label>
+            <label class="toggle">
+              <input type="checkbox" id="transparent" onchange="S.transparent=this.checked; schedRender()">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <label>Gradient Mode</label>
+            <label class="toggle">
+              <input type="checkbox" id="use-grad"
+                     onchange="S.gradient=this.checked; document.getElementById('grad-opts').style.display=this.checked?'block':'none'; schedRender()">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div id="grad-opts" style="display:none;" class="sub-panel">
+            <div class="two-col">
+              <div>
+                <div class="field-label">Color 1</div>
+                <div class="color-input-group">
+                  <div class="color-swatch" id="gc1-sw" style="background:#2D9CDB;">
+                    <input type="color" id="gc1" value="#2D9CDB" oninput="syncColor('gc1',this.value)">
+                  </div>
+                  <input class="hex-in" id="gc1-hex" value="#2D9CDB" oninput="syncHex('gc1',this.value)">
+                </div>
+              </div>
+              <div>
+                <div class="field-label">Color 2</div>
+                <div class="color-input-group">
+                  <div class="color-swatch" id="gc2-sw" style="background:#27AE60;">
+                    <input type="color" id="gc2" value="#27AE60" oninput="syncColor('gc2',this.value)">
+                  </div>
+                  <input class="hex-in" id="gc2-hex" value="#27AE60" oninput="syncHex('gc2',this.value)">
+                </div>
+              </div>
+            </div>
+            <div class="two-col" style="margin-top:10px;">
+              <div>
+                <div class="field-label">Type</div>
+                <select class="select" id="grad-type" onchange="S.gType=this.value; schedRender()">
+                  <option value="linear">Linear</option>
+                  <option value="radial">Radial</option>
+                </select>
+              </div>
+              <div>
+                <div class="field-label">Angle</div>
+                <div class="slider-row">
+                  <input type="range" class="range" id="grad-angle" min="0" max="360" value="45"
+                         oninput="S.gAngle=parseInt(this.value); document.getElementById('ga-val').textContent=this.value+'°'; schedRender()">
+                  <span class="s-val" id="ga-val">45°</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 1: Marker Colors -->
+        <div class="csub" id="ctab-1">
+          <div class="toggle-row">
+            <label>Custom Marker Color</label>
+            <label class="toggle">
+              <input type="checkbox" id="custom-marker"
+                     onchange="S.customMarker=this.checked; document.getElementById('marker-opts').style.display=this.checked?'block':'none'; schedRender()">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div id="marker-opts" style="display:none;" class="sub-panel">
+            <div class="color-row">
+              <span class="c-label">Border Color</span>
+              <div class="color-input-group">
+                <div class="color-swatch" id="mb-sw" style="background:#000000;">
+                  <input type="color" id="mb-color" value="#000000" oninput="syncColor('mb',this.value)">
+                </div>
+                <input class="hex-in" id="mb-hex" value="#000000" oninput="syncHex('mb',this.value)">
+              </div>
+            </div>
+            <div class="color-row">
+              <span class="c-label">Center Color</span>
+              <div class="color-input-group">
+                <div class="color-swatch" id="mc-sw" style="background:#000000;">
+                  <input type="color" id="mc-color" value="#000000" oninput="syncColor('mc',this.value)">
+                </div>
+                <input class="hex-in" id="mc-hex" value="#000000" oninput="syncHex('mc',this.value)">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Eye Frame -->
+        <div class="csub" id="ctab-2">
+          <div class="toggle-row">
+            <label>Custom Eye Frame Color</label>
+            <label class="toggle">
+              <input type="checkbox" id="custom-ef"
+                     onchange="S.customEF=this.checked; document.getElementById('ef-opts').style.display=this.checked?'block':'none'; schedRender()">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div id="ef-opts" style="display:none;" class="sub-panel">
+            <div class="color-row">
+              <span class="c-label">Eye Frame Color</span>
+              <div class="color-input-group">
+                <div class="color-swatch" id="ef-sw" style="background:#000000;">
+                  <input type="color" id="ef-color" value="#000000" oninput="syncColor('ef',this.value)">
+                </div>
+                <input class="hex-in" id="ef-hex" value="#000000" oninput="syncHex('ef',this.value)">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Eye Inner -->
+        <div class="csub" id="ctab-3">
+          <div class="toggle-row">
+            <label>Custom Eye Inner Color</label>
+            <label class="toggle">
+              <input type="checkbox" id="custom-ei"
+                     onchange="S.customEI=this.checked; document.getElementById('ei-opts').style.display=this.checked?'block':'none'; schedRender()">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div id="ei-opts" style="display:none;" class="sub-panel">
+            <div class="color-row">
+              <span class="c-label">Eye Inner Color</span>
+              <div class="color-input-group">
+                <div class="color-swatch" id="ei-sw" style="background:#000000;">
+                  <input type="color" id="ei-color" value="#000000" oninput="syncColor('ei',this.value)">
+                </div>
+                <input class="hex-in" id="ei-hex" value="#000000" oninput="syncHex('ei',this.value)">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PATTERNS -->
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <i class="fa-solid fa-grip ch-icon"></i>
+        <span>Patterns</span>
+        <i class="fa-solid fa-chevron-down arrow"></i>
+      </div>
+      <div class="card-body hidden">
+        <div class="sub-tabs">
+          <div class="stab active" onclick="switchStab('pat',0,this)">Design</div>
+          <div class="stab" onclick="switchStab('pat',1,this)">Eye Frame</div>
+          <div class="stab" onclick="switchStab('pat',2,this)">Eye Inner</div>
+        </div>
+        <div class="spanel active" id="pat-0">
+          <div class="pattern-grid" id="design-grid"></div>
+        </div>
+        <div class="spanel" id="pat-1">
+          <div class="pattern-grid" id="eyeframe-grid"></div>
+        </div>
+        <div class="spanel" id="pat-2">
+          <div class="pattern-grid" id="eyeinner-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGO -->
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <i class="fa-solid fa-image ch-icon"></i>
+        <span>Logo</span>
+        <i class="fa-solid fa-chevron-down arrow"></i>
+      </div>
+      <div class="card-body hidden">
+        <div id="logo-prev-area"></div>
+        <div class="upload-zone" id="logo-upload"
+             onclick="document.getElementById('logo-file').click()"
+             ondrop="handleLogoDrop(event)"
+             ondragover="event.preventDefault(); this.classList.add('drag-over')"
+             ondragleave="this.classList.remove('drag-over')">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <p>Click or drag logo here</p>
+          <p class="upload-sub">JPG · PNG · SVG (max 5 MB)</p>
+        </div>
+        <input type="file" id="logo-file" accept="image/*" style="display:none" onchange="handleLogoFile(this)">
+        <div class="divider"></div>
+        <div class="section-label">Preset Logos</div>
+        <input class="input" id="logo-search" placeholder="Filter logos..." style="margin-bottom:8px;"
+               oninput="filterLogos(this.value)">
+        <div class="logo-grid" id="logo-grid"></div>
+        <div class="divider"></div>
+        <div class="section-label">Logo Options</div>
+        <div class="toggle-row">
+          <label>Remove Background behind Logo</label>
+          <label class="toggle">
+            <input type="checkbox" id="logo-rmbg" checked onchange="S.logoRemoveBG=this.checked; schedRender()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="slider-row" style="margin-top:10px;">
+          <span class="s-label">Size</span>
+          <input type="range" class="range" id="logo-size" min="10" max="50" value="25"
+                 oninput="S.logoSize=parseInt(this.value); document.getElementById('ls-val').textContent=this.value+'%'; schedRender()">
+          <span class="s-val" id="ls-val">25%</span>
+        </div>
+        <div class="slider-row">
+          <span class="s-label">Border Radius</span>
+          <input type="range" class="range" id="logo-br" min="0" max="50" value="0"
+                 oninput="S.logoBR=parseInt(this.value); document.getElementById('lbr-val').textContent=this.value+'%'; schedRender()">
+          <span class="s-val" id="lbr-val">0%</span>
+        </div>
+        <div class="slider-row">
+          <span class="s-label">Padding</span>
+          <input type="range" class="range" id="logo-pad" min="0" max="20" value="4"
+                 oninput="S.logoPad=parseInt(this.value); document.getElementById('lp-val').textContent=this.value+'px'; schedRender()">
+          <span class="s-val" id="lp-val">4px</span>
+        </div>
+        <div class="color-row" style="margin-top:6px;">
+          <span class="c-label">Padding Color</span>
+          <div class="color-input-group">
+            <div class="color-swatch" id="lpc-sw" style="background:#ffffff;">
+              <input type="color" id="lpc-color" value="#ffffff" oninput="syncColor('lpc',this.value)">
+            </div>
+            <input class="hex-in" id="lpc-hex" value="#ffffff" oninput="syncHex('lpc',this.value)">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FRAME -->
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <i class="fa-regular fa-square ch-icon"></i>
+        <span>Frame</span>
+        <i class="fa-solid fa-chevron-down arrow"></i>
+      </div>
+      <div class="card-body hidden">
+        <div class="sub-tabs">
+          <div class="stab active" onclick="switchStab('frame',0,this)">With Label</div>
+          <div class="stab" onclick="switchStab('frame',1,this)">Without Label</div>
+        </div>
+
+        <!-- With Label -->
+        <div class="spanel active" id="frame-0">
+          <div class="two-col" style="margin-bottom:12px;">
+            <div class="fg">
+              <label class="field-label">Label Text</label>
+              <input class="input" id="frame-label" value="Scan Me"
+                     oninput="S.frameLabel=this.value; schedRender()">
+            </div>
+            <div class="fg">
+              <label class="field-label">Font</label>
+              <select class="select" id="frame-font" onchange="S.frameFont=this.value; schedRender()">
+                <option>Poppins</option><option>Roboto</option><option>Montserrat</option>
+                <option>Open Sans</option><option>Oswald</option><option>Raleway</option>
+              </select>
+            </div>
+          </div>
+          <div class="slider-row" style="margin-bottom:10px;">
+            <span class="s-label">Text Size</span>
+            <input type="range" class="range" id="frame-ts" min="50" max="200" value="100"
+                   oninput="S.frameTSize=parseInt(this.value); document.getElementById('fts-v').textContent=this.value+'%'; schedRender()">
+            <span class="s-val" id="fts-v">100%</span>
+          </div>
+          <div class="two-col" style="margin-bottom:12px;">
+            <div>
+              <div class="field-label">Label Color</div>
+              <div class="color-input-group">
+                <div class="color-swatch" id="flc-sw" style="background:#ffffff;">
+                  <input type="color" id="flc-color" value="#ffffff" oninput="syncColor('flc',this.value)">
+                </div>
+                <input class="hex-in" id="flc-hex" value="#ffffff" oninput="syncHex('flc',this.value)">
+              </div>
+            </div>
+            <div>
+              <div class="field-label">Frame Color</div>
+              <div class="color-input-group">
+                <div class="color-swatch" id="fc-sw" style="background:#2D9CDB;">
+                  <input type="color" id="fc-color" value="#2D9CDB" oninput="syncColor('fc',this.value)">
+                </div>
+                <input class="hex-in" id="fc-hex" value="#2D9CDB" oninput="syncHex('fc',this.value)">
+              </div>
+            </div>
+          </div>
+          <div class="frame-grid" id="frame-label-grid"></div>
+        </div>
+
+        <!-- Without Label -->
+        <div class="spanel" id="frame-1">
+          <div class="color-row" style="margin-bottom:12px;">
+            <span class="c-label">Frame Color</span>
+            <div class="color-input-group">
+              <div class="color-swatch" id="fc2-sw" style="background:#2D9CDB;">
+                <input type="color" id="fc2-color" value="#2D9CDB" oninput="syncColor('fc2',this.value)">
+              </div>
+              <input class="hex-in" id="fc2-hex" value="#2D9CDB" oninput="syncHex('fc2',this.value)">
+            </div>
+          </div>
+          <div class="frame-grid" id="frame-nolabel-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEMPLATES -->
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <i class="fa-solid fa-layer-group ch-icon"></i>
+        <span>Templates</span>
+        <i class="fa-solid fa-chevron-down arrow"></i>
+      </div>
+      <div class="card-body hidden">
+        <div class="section-label">Preset Templates</div>
+        <div class="template-grid" id="preset-tgrid"></div>
+        <div class="divider"></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+          <div class="section-label" style="margin:0;">My Templates</div>
+          <button class="btn btn-primary btn-sm" onclick="openSaveModal()">
+            <i class="fa-solid fa-bookmark"></i> Save Current
+          </button>
+        </div>
+        <div id="saved-tlist"></div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <i class="fa-solid fa-chart-bar ch-icon"></i>
+        <span>Analytics</span>
+        <i class="fa-solid fa-chevron-down arrow"></i>
+      </div>
+      <div class="card-body hidden">
+        <div class="analytics-grid">
+          <div class="a-item"><div class="a-val" id="a-chars">—</div><div class="a-lbl">Characters</div></div>
+          <div class="a-item"><div class="a-val" id="a-version">—</div><div class="a-lbl">QR Version</div></div>
+          <div class="a-item"><div class="a-val" id="a-modules">—</div><div class="a-lbl">Modules</div></div>
+          <div class="a-item"><div class="a-val" id="a-scan" style="font-size:.85rem;">—</div><div class="a-lbl">Scanability</div></div>
+        </div>
+        <div id="warn-bar" class="warn-bar" style="display:none;"></div>
+      </div>
+    </div>
+
+    <!-- ADVANCED -->
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <i class="fa-solid fa-gear ch-icon"></i>
+        <span>Advanced</span>
+        <i class="fa-solid fa-chevron-down arrow"></i>
+      </div>
+      <div class="card-body hidden">
+        <div class="two-col" style="margin-bottom:12px;">
+          <div class="fg">
+            <label class="field-label">Rotation</label>
+            <select class="select" id="qr-rotation" onchange="S.rotation=parseInt(this.value); schedRender()">
+              <option value="0">0°</option><option value="90">90°</option>
+              <option value="180">180°</option><option value="270">270°</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="field-label">CSS Filter</label>
+            <select class="select" id="qr-filter" onchange="S.filter=this.value; schedRender()">
+              <option value="none">None</option>
+              <option value="grayscale(100%)">Grayscale</option>
+              <option value="sepia(80%)">Sepia</option>
+              <option value="invert(100%)">Invert</option>
+              <option value="contrast(150%)">High Contrast</option>
+              <option value="hue-rotate(180deg)">Hue Shift</option>
+            </select>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <label>Flip Horizontal</label>
+          <label class="toggle">
+            <input type="checkbox" id="flip-h" onchange="S.flipH=this.checked; schedRender()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <label>Flip Vertical</label>
+          <label class="toggle">
+            <input type="checkbox" id="flip-v" onchange="S.flipV=this.checked; schedRender()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <label>Invert Colors</label>
+          <label class="toggle">
+            <input type="checkbox" id="invert-c" onchange="S.invert=this.checked; schedRender()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="divider"></div>
+        <div class="toggle-row">
+          <label>Enable Shadow</label>
+          <label class="toggle">
+            <input type="checkbox" id="use-shadow"
+                   onchange="S.shadow=this.checked; document.getElementById('shadow-opts').style.display=this.checked?'block':'none'; schedRender()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div id="shadow-opts" style="display:none;" class="sub-panel">
+          <div class="color-row">
+            <span class="c-label">Shadow Color</span>
+            <div class="color-input-group">
+              <div class="color-swatch" id="sc-sw" style="background:#000000;">
+                <input type="color" id="sc-color" value="#000000" oninput="syncColor('sc',this.value)">
+              </div>
+              <input class="hex-in" id="sc-hex" value="#000000" oninput="syncHex('sc',this.value)">
+            </div>
+          </div>
+          <div class="slider-row">
+            <span class="s-label">Blur</span>
+            <input type="range" class="range" id="shadow-blur" min="0" max="40" value="10"
+                   oninput="S.shadowBlur=parseInt(this.value); document.getElementById('sb-v').textContent=this.value+'px'; schedRender()">
+            <span class="s-val" id="sb-v">10px</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /settings-panel -->
+
+  <!-- ── RIGHT: PREVIEW PANEL ── -->
+  <div class="preview-panel" id="preview-panel">
+
+    <div class="qr-card" id="qr-wrap">
+      <div class="qr-empty" id="qr-empty">
+        <i class="fa-solid fa-qrcode"></i>
+        <p>Enter content to generate</p>
+      </div>
+      <canvas id="qr-canvas" style="display:none;"></canvas>
+      <div class="qr-loading" id="qr-loading">
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+    <!-- Info badges -->
+    <div class="info-row" id="qr-info-row" style="display:none;">
+      <span class="info-badge"><i class="fa-solid fa-expand"></i><span id="bi-size">—</span></span>
+      <span class="info-badge"><i class="fa-solid fa-hashtag"></i>v<span id="bi-ver">—</span></span>
+      <span class="info-badge"><i class="fa-solid fa-th"></i><span id="bi-mod">—</span></span>
+      <span class="info-badge"><i class="fa-solid fa-font"></i><span id="bi-chars">—</span> ch</span>
+    </div>
+
+    <div id="warn-bar-prev" class="warn-bar" style="display:none; width:100%;"></div>
+
+    <!-- Action buttons -->
+    <div class="action-btns" id="action-btns" style="display:none;">
+
+      <!-- Download split button -->
+      <div class="dl-wrap">
+        <div class="dl-split">
+          <button class="dl-main" onclick="downloadQR('png')">
+            <i class="fa-solid fa-download"></i> Download PNG
+          </button>
+          <button class="dl-chevron" onclick="toggleDLDropdown()">
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+        </div>
+        <div class="dl-dropdown" id="dl-dropdown">
+          <div class="dl-item" onclick="downloadQR('png')"><i class="fa-solid fa-image"></i> PNG</div>
+          <div class="dl-item" onclick="downloadQR('jpg')"><i class="fa-solid fa-image"></i> JPG</div>
+          <div class="dl-item" onclick="downloadQR('svg')"><i class="fa-solid fa-code"></i> SVG (Vector)</div>
+          <div class="dl-item" onclick="downloadQR('webp')"><i class="fa-solid fa-image"></i> WebP</div>
+          <div class="dl-sep"></div>
+          <div class="dl-item" onclick="downloadQR('png2x')"><i class="fa-solid fa-magnifying-glass-plus"></i> PNG 2x</div>
+          <div class="dl-item" onclick="downloadQR('png4x')"><i class="fa-solid fa-magnifying-glass-plus"></i> PNG 4x</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="openSaveModal()">
+          <i class="fa-solid fa-bookmark"></i> Save Template
+        </button>
+        <button class="btn btn-ghost" onclick="copyToClipboard()">
+          <i class="fa-regular fa-copy"></i> Copy
+        </button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="shareQR()">
+          <i class="fa-solid fa-share-nodes"></i> Share
+        </button>
+        <button class="btn btn-ghost" onclick="window.print()">
+          <i class="fa-solid fa-print"></i> Print
+        </button>
+      </div>
+
+      <div style="text-align:center;">
+        <span class="scan-help-link" onclick="openModal('help-modal')">
+          Why my QR Code is not scanning?
+        </span>
+      </div>
+    </div>
+
+  </div><!-- /preview-panel -->
+</div><!-- /mode-gen -->
+
+<!-- ═══════════════════════════════════════
+     SCANNER MODE
+═══════════════════════════════════════ -->
+<div id="mode-scan" class="mode-view" style="display:none;">
+  <div class="scan-area">
+    <h2 class="mode-title">QR Code Scanner</h2>
+
+    <div class="video-wrap" id="video-wrap" style="display:none;">
+      <video id="scanner-video" playsinline autoplay muted></video>
+      <div class="scan-overlay">
+        <div class="scan-frame"></div>
+      </div>
+    </div>
+
+    <div class="btn-group-center">
+      <button class="btn btn-primary" id="start-scan-btn" onclick="startScanner()">
+        <i class="fa-solid fa-camera"></i> Start Camera
+      </button>
+      <button class="btn btn-ghost" id="stop-scan-btn" style="display:none;" onclick="stopScanner()">
+        <i class="fa-solid fa-stop"></i> Stop
+      </button>
+      <button class="btn btn-outline" onclick="document.getElementById('scan-file').click()">
+        <i class="fa-solid fa-image"></i> Upload Image
+      </button>
+      <input type="file" id="scan-file" accept="image/*" style="display:none;" onchange="scanFromFile(this)">
+    </div>
+
+    <div class="scan-result-card" id="scan-result" style="display:none;">
+      <div class="sr-label">Scanned Content</div>
+      <div class="sr-data" id="scan-data"></div>
+      <div class="btn-group-center" style="margin-top:12px;">
+        <button class="btn btn-primary btn-sm" id="scan-open-btn" onclick="openScannedURL()">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> Open
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="copyScanned()">
+          <i class="fa-regular fa-copy"></i> Copy
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="loadScannedInGen()">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Edit in Generator
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     BATCH MODE
+═══════════════════════════════════════ -->
+<div id="mode-batch" class="mode-view" style="display:none;">
+  <div class="batch-area">
+    <h2 class="mode-title">Batch QR Generator</h2>
+
+    <div class="card">
+      <div class="card-header open" onclick="toggleCard(this)">
+        <i class="fa-solid fa-list ch-icon"></i>
+        <span>Input (one URL/text per line)</span>
+        <i class="fa-solid fa-chevron-down arrow"></i>
+      </div>
+      <div class="card-body">
+        <textarea class="input" id="batch-input" rows="8" style="resize:vertical;"
+                  placeholder="https://example.com&#10;https://github.com&#10;Hello World"></textarea>
+        <div class="two-col" style="margin-top:10px; margin-bottom:12px;">
+          <div class="fg">
+            <label class="field-label">Output Size (px)</label>
+            <input class="input" id="batch-size" type="number" value="512" min="100" max="2048">
+          </div>
+          <div class="fg">
+            <label class="field-label">Format</label>
+            <select class="select" id="batch-fmt">
+              <option value="png">PNG</option>
+              <option value="jpg">JPG</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-group-left">
+          <button class="btn btn-primary" onclick="startBatch()">
+            <i class="fa-solid fa-rocket"></i> Generate All
+          </button>
+          <button class="btn btn-outline" id="batch-dl-btn" style="display:none;" onclick="downloadBatch()">
+            <i class="fa-solid fa-file-archive"></i> Download ZIP
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="batch-progress-card" style="display:none;">
+      <div class="card-body">
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:.82rem;">
+          <span id="batch-prog-txt">Generating...</span>
+          <span id="batch-prog-num">0 / 0</span>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-fill" id="batch-prog-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="batch-preview" id="batch-preview"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     HISTORY MODE
+═══════════════════════════════════════ -->
+<div id="mode-hist" class="mode-view" style="display:none;">
+  <div class="hist-area">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+      <h2 class="mode-title" style="margin:0;">QR History</h2>
+      <button class="btn btn-danger btn-sm" onclick="clearHistory()">
+        <i class="fa-solid fa-trash"></i> Clear All
+      </button>
+    </div>
+    <input class="input" id="hist-search" placeholder="Search history..."
+           style="margin-bottom:12px;" oninput="renderHistory(this.value)">
+    <div id="hist-list"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MODALS
+═══════════════════════════════════════ -->
+
+<!-- Save Template -->
+<div class="modal-bg" id="save-modal">
+  <div class="modal">
+    <h3 class="modal-title">
+      <i class="fa-solid fa-bookmark" style="color:var(--primary)"></i> Save Template
+    </h3>
+    <div class="fg">
+      <label class="field-label">Template Name</label>
+      <input class="input" id="save-name" placeholder="My Awesome QR Style...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('save-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTemplate()">
+        <i class="fa-solid fa-bookmark"></i> Save
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Scan Help -->
+<div class="modal-bg" id="help-modal">
+  <div class="modal">
+    <h3 class="modal-title">
+      <i class="fa-solid fa-circle-question" style="color:var(--primary)"></i>
+      Why isn't my QR scanning?
+    </h3>
+    <div class="help-tips">
+      <div class="help-tip">🔍 <strong>Low contrast</strong> — Use dark foreground on light background.</div>
+      <div class="help-tip">📐 <strong>Too small</strong> — Make QR at least 200px / 2cm when printed.</div>
+      <div class="help-tip">🖼️ <strong>Logo too large</strong> — Keep logo under 30% of QR area.</div>
+      <div class="help-tip">⚙️ <strong>Error correction</strong> — Use H (Best) when adding a logo.</div>
+      <div class="help-tip">🖨️ <strong>Blurry print</strong> — Ensure sharp edges, no blur or pixelation.</div>
+      <div class="help-tip">📷 <strong>Camera distance</strong> — Hold camera 15–30 cm from the code.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeModal('help-modal')">Got it!</button>
+    </div>
+  </div>
+</div>
+
+<!-- Keyboard Shortcuts -->
+<div class="modal-bg" id="kb-modal">
+  <div class="modal">
+    <h3 class="modal-title">
+      <i class="fa-solid fa-keyboard" style="color:var(--primary)"></i> Keyboard Shortcuts
+    </h3>
+    <div class="kb-list">
+      <div class="kb-row"><kbd>Ctrl+D</kbd><span>Download PNG</span></div>
+      <div class="kb-row"><kbd>Ctrl+S</kbd><span>Save Template</span></div>
+      <div class="kb-row"><kbd>Ctrl+C</kbd><span>Copy QR to Clipboard</span></div>
+      <div class="kb-row"><kbd>Ctrl+Z</kbd><span>Undo</span></div>
+      <div class="kb-row"><kbd>Ctrl+Y</kbd><span>Redo</span></div>
+      <div class="kb-row"><kbd>D</kbd><span>Toggle Dark Mode</span></div>
+      <div class="kb-row"><kbd>?</kbd><span>Show this dialog</span></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeModal('kb-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toasts"></div>
+
+<!-- ═══════════════════════════════════════
+     JAVASCRIPT — load order matters
+═══════════════════════════════════════ -->
+<script src="js/state.js"></script>
+<script src="js/qr-engine.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/download.js"></script>
+<script src="js/templates.js"></script>
+<script src="js/scanner.js"></script>
+<script src="js/batch.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
