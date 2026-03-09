@@ -1,633 +1,9 @@
 // =========================================================
-// app.js — Init, mode switching, accordion, UI helpers
-// QR Prism v2.4
+// app.js — QR Prism v2.5
+// Main initialization, keyboard shortcuts, PWA banner
 // =========================================================
 
-// ── Mode switching (scroll to top on switch) ──────────────
-let _currentMode = 'gen';
-
-function switchMode(mode) {
-  _currentMode = mode;
-
-  // Hide all views, show target
-  document.querySelectorAll('.mode-view').forEach(v => v.classList.remove('active'));
-  const target = document.getElementById('mode-' + mode);
-  if (target) {
-    target.classList.add('active');
-    const mc = document.getElementById('main-content');
-    if (mc) mc.scrollTo({ top: 0, behavior: 'instant' });
-  }
-
-  // Sidebar
-  document.querySelectorAll('.nav-item[data-mode]').forEach(b => b.classList.remove('active'));
-  document.querySelector(`.nav-item[data-mode="${mode}"]`)?.classList.add('active');
-
-  // Topnav
-  document.querySelectorAll('.topnav-tab').forEach(b => b.classList.remove('active'));
-  document.querySelector(`.topnav-tab[data-mode="${mode}"]`)?.classList.add('active');
-
-  // Bottomnav
-  document.querySelectorAll('.bottomnav-item[data-mode]').forEach(b => b.classList.remove('active'));
-  document.querySelector(`.bottomnav-item[data-mode="${mode}"]`)?.classList.add('active');
-
-  // Bottom sheet items
-  document.querySelectorAll('.bs-item[data-mode]').forEach(b => b.classList.remove('active'));
-  document.querySelector(`.bs-item[data-mode="${mode}"]`)?.classList.add('active');
-
-  // Page-specific init
-  if (mode === 'projects') renderProjects();
-  if (mode === 'settings') renderSettings();
-  if (mode === 'batch') renderBatchTemplateList();
-  if (mode === 'templates-manage') renderTemplatesManage();
-  if (mode === 'profile') renderProfile();
-  if (mode === 'scan') initScannerView();
-
-  updateProjectCountBadge();
-
-  // Close open dropdowns
-  document.querySelectorAll('.dropdown-menu.open').forEach(d => d.classList.remove('open'));
-  document.getElementById('dl-dropdown')?.classList.remove('open');
-}
-
-function updateProjectCountBadge() {
-  const badge = document.getElementById('sidebar-project-count');
-  if (!badge) return;
-  const count = loadProjects().length;
-  badge.textContent = count;
-  badge.style.display = count > 0 ? '' : 'none';
-}
-
-// ── Card Accordion ────────────────────────────────────────
-function toggleCard(headerEl) {
-  const body = headerEl.nextElementSibling;
-  if (!body) return;
-  const isOpen = headerEl.classList.contains('open');
-
-  // Close all cards in same panel (accordion behavior)
-  const panel = headerEl.closest('.settings-panel');
-  if (panel && !isOpen) {
-    panel.querySelectorAll('.card-header.open').forEach(h => {
-      if (h !== headerEl) {
-        h.classList.remove('open');
-        h.nextElementSibling?.classList.add('hidden');
-      }
-    });
-  }
-
-  headerEl.classList.toggle('open', !isOpen);
-  body.classList.toggle('hidden', isOpen);
-}
-
-// ── Color tab switching ───────────────────────────────────
-function switchCTab(idx, el) {
-  document.querySelectorAll('.ctab').forEach(b => b.classList.remove('active'));
-  el?.classList.add('active');
-  document.querySelectorAll('.csub').forEach(s => s.classList.remove('active'));
-  document.getElementById('ctab-' + idx)?.classList.add('active');
-}
-
-// ── Sub-tabs (Patterns, Frame) ────────────────────────────
-function switchStab(group, idx, el) {
-  const container = el.closest('.card-body') || el.closest('.batch-area');
-  if (!container) return;
-  container.querySelectorAll('.stab').forEach(b => b.classList.remove('active'));
-  el?.classList.add('active');
-  container.querySelectorAll('.spanel').forEach((p, i) => p.classList.toggle('active', i === idx));
-}
-
-// ── Download dropdown ─────────────────────────────────────
-function toggleDLDropdown() {
-  document.getElementById('dl-dropdown')?.classList.toggle('open');
-}
-
-// ── Bottom Sheet ──────────────────────────────────────────
-function openBottomSheet() {
-  document.getElementById('bs-overlay')?.classList.add('open');
-  document.getElementById('bottom-sheet')?.classList.add('open');
-}
-function closeBottomSheet() {
-  document.getElementById('bs-overlay')?.classList.remove('open');
-  document.getElementById('bottom-sheet')?.classList.remove('open');
-}
-
-// ── Modals ────────────────────────────────────────────────
-function openModal(id) {
-  document.getElementById(id)?.classList.add('open');
-}
-function closeModal(id) {
-  document.getElementById(id)?.classList.remove('open');
-}
-
-// Close modal on backdrop click
-document.addEventListener('click', e => {
-  if (e.target.classList.contains('modal-bg')) e.target.classList.remove('open');
-  if (!e.target.closest('.dl-wrap')) document.getElementById('dl-dropdown')?.classList.remove('open');
-  if (!e.target.closest('.project-3dot')) {
-    document.querySelectorAll('.dropdown-menu.open').forEach(d => d.classList.remove('open'));
-  }
-});
-
-// ── Confirmation Modal ────────────────────────────────────
-function showConfirm({ title, msg, list, okLabel = 'Confirm', okClass = 'btn-danger', onConfirm }) {
-  document.getElementById('confirm-title').innerHTML =
-    `<i class="fa-solid fa-triangle-exclamation" style="color:var(--warning)"></i> ${title}`;
-  document.getElementById('confirm-msg').textContent = msg;
-  const listEl = document.getElementById('confirm-list');
-  if (list?.length) {
-    listEl.style.display = '';
-    listEl.innerHTML = list.map(l => `• ${escHtml(l)}`).join('<br>');
-  } else {
-    listEl.style.display = 'none';
-  }
-  const okBtn = document.getElementById('confirm-ok-btn');
-  okBtn.textContent = okLabel;
-  okBtn.className = 'btn ' + okClass;
-  okBtn.onclick = () => { closeModal('confirm-modal'); onConfirm?.(); };
-  openModal('confirm-modal');
-}
-
-// ── Toast notifications ───────────────────────────────────
-function showToast(msg, type = 'info', duration = 3000) {
-  const icons = {
-    success: 'fa-check-circle', error: 'fa-times-circle',
-    warning: 'fa-exclamation-triangle', info: 'fa-circle-info'
-  };
-  const t = document.createElement('div');
-  t.className = `toast toast-${type}`;
-  t.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i><span>${escHtml(msg)}</span>`;
-  document.getElementById('toasts').appendChild(t);
-  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 280); }, duration);
-}
-
-// ── Save Template / Project modals ────────────────────────
-function openSaveTemplateModal() {
-  const inp = document.getElementById('save-tmpl-name');
-  if (inp) inp.value = '';
-  openModal('save-template-modal');
-  setTimeout(() => inp?.focus(), 100);
-}
-
-function openSaveProjectModal() {
-  if (!S.inputData?.trim()) return showToast('Generate a QR first', 'warning');
-  const inp = document.getElementById('save-proj-name');
-  if (inp) inp.value = '';
-  openModal('save-project-modal');
-  setTimeout(() => inp?.focus(), 100);
-}
-
-function saveProjectWithName() {
-  const name = document.getElementById('save-proj-name')?.value?.trim() || 'My Project';
-  saveNamedProject(name);
-  closeModal('save-project-modal');
-}
-
-// ── Size helpers ──────────────────────────────────────────
-function adjSize(delta) {
-  const inp = document.getElementById('qr-size');
-  S.size = Math.min(2000, Math.max(100, (parseInt(inp?.value) || 600) + delta));
-  if (inp) inp.value = S.size;
-  schedRender();
-}
-function setSize(val) {
-  S.size = val;
-  const inp = document.getElementById('qr-size');
-  if (inp) inp.value = val;
-  schedRender();
-}
-
-// ── Color sync ────────────────────────────────────────────
-const COLOR_KEY_MAP = {
-  fg: 'fgColor', bg: 'bgColor', gc1: 'gc1', gc2: 'gc2',
-  mb: 'mbColor', mc: 'mcColor', ef: 'efColor', ei: 'eiColor',
-  lpc: 'logoPadColor', flc: 'frameLabelColor', fc: 'frameColor',
-  fc2: 'frameColor', sc: 'shadowColor',
-};
-
-function syncColor(key, value) {
-  S[COLOR_KEY_MAP[key] || key] = value;
-  const sw = document.getElementById(key + '-sw');
-  const hex = document.getElementById(key + '-hex');
-  if (sw) sw.style.background = value;
-  if (hex) hex.value = value;
-  schedRender();
-}
-
-function syncHex(key, value) {
-  if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
-    const inp = document.getElementById(key + '-color');
-    if (inp) inp.value = value;
-    syncColor(key, value);
-  }
-}
-
-// ── Logo upload ───────────────────────────────────────────
-function handleLogoFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  if (file.size > 5 * 1024 * 1024) return showToast('File too large (max 5MB)', 'error');
-  const reader = new FileReader();
-  reader.onload = e => {
-    S.logoSrc = e.target.result;
-    S.logoKey = null;
-    updateLogoPreview(S.logoSrc);
-    document.querySelectorAll('.logo-item').forEach(el => el.classList.remove('active'));
-    schedRender();
-  };
-  reader.readAsDataURL(file);
-}
-
-function handleLogoDrop(e) {
-  e.preventDefault();
-  document.getElementById('logo-upload').classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file) {
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    const input = document.getElementById('logo-file');
-    if (input) { input.files = dt.files; handleLogoFile(input); }
-  }
-}
-
-function updateLogoPreview(src) {
-  const area = document.getElementById('logo-prev-area');
-  if (!area) return;
-  if (!src) { area.innerHTML = ''; return; }
-  area.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-      <img src="${src}" class="logo-preview-img" alt="Logo">
-      <button class="btn btn-ghost btn-sm" onclick="clearLogo()">
-        <i class="fa-solid fa-xmark"></i> Remove
-      </button>
-    </div>`;
-}
-
-function clearLogo() {
-  S.logoSrc = null;
-  S.logoKey = null;
-  updateLogoPreview(null);
-  document.querySelectorAll('.logo-item').forEach(el => el.classList.remove('active'));
-  const fi = document.getElementById('logo-file');
-  if (fi) fi.value = '';
-  schedRender();
-}
-
-function filterLogos(query) {
-  const q = query.toLowerCase();
-  document.querySelectorAll('.logo-item').forEach(el => {
-    el.style.display = (!q || (el.dataset.name || '').toLowerCase().includes(q)) ? '' : 'none';
-  });
-}
-
-// ── Share / Copy ──────────────────────────────────────────
-async function shareQR() {
-  const canvas = document.getElementById('qr-canvas');
-  if (!canvas || canvas.style.display === 'none') return showToast('No QR to share', 'warning');
-  canvas.toBlob(async blob => {
-    const file = new File([blob], 'qr-prism.png', { type: 'image/png' });
-    if (navigator.canShare?.({ files: [file] })) {
-      try { await navigator.share({ title: 'QR Code', files: [file] }); }
-      catch(e) {}
-    } else {
-      copyToClipboard();
-    }
-  });
-}
-
-async function copyToClipboard() {
-  const canvas = document.getElementById('qr-canvas');
-  if (!canvas || canvas.style.display === 'none') return showToast('No QR to copy', 'warning');
-  try {
-    const blob = await new Promise(r => canvas.toBlob(r));
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-    showToast('Copied to clipboard!', 'success');
-  } catch(e) {
-    showToast('Copy not supported in this browser', 'error');
-  }
-}
-
-function shareApp() {
-  const url = window.location.href;
-  if (navigator.share) {
-    navigator.share({ title: 'QR Prism', text: 'Free advanced QR code generator!', url });
-  } else {
-    navigator.clipboard.writeText(url).then(() => showToast('App URL copied!', 'success'));
-  }
-}
-
-// ── Tooltip handling for mobile (tap to show, tap outside to hide) ──
-document.addEventListener('click', e => {
-  const infoBtn = e.target.closest('.tooltip-wrap');
-  const isMobile = window.innerWidth < 768;
-
-  if (isMobile) {
-    if (infoBtn) {
-      // Close all others
-      document.querySelectorAll('.tooltip-wrap.show-tip').forEach(el => {
-        if (el !== infoBtn) el.classList.remove('show-tip');
-      });
-      infoBtn.classList.toggle('show-tip');
-      e.stopPropagation();
-    } else {
-      document.querySelectorAll('.tooltip-wrap.show-tip').forEach(el => el.classList.remove('show-tip'));
-    }
-  }
-});
-
-// Fix tooltip overflow — reposition if going off-screen
-function repositionTooltips() {
-  document.querySelectorAll('.tooltip-pop').forEach(tip => {
-    tip.classList.remove('tip-left', 'tip-right');
-    const rect = tip.getBoundingClientRect();
-    if (rect.left < 0) tip.classList.add('tip-left');
-    else if (rect.right > window.innerWidth) tip.classList.add('tip-right');
-  });
-}
-document.addEventListener('mouseover', e => {
-  if (e.target.closest('.tooltip-wrap')) repositionTooltips();
-});
-
-// ── Bug Report ────────────────────────────────────────────
-let _reportType = 'bug';
-let _reportImages = [];
-
-function selectReportType(btn, type) {
-  _reportType = type;
-  document.querySelectorAll('.rtype-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-}
-
-function handleReportImages(input) {
-  const files = Array.from(input.files);
-  files.slice(0, 8 - _reportImages.length).forEach(file => {
-    if (file.size > 5 * 1024 * 1024) { showToast(`${file.name} too large`, 'warning'); return; }
-    const reader = new FileReader();
-    reader.onload = e => { _reportImages.push(e.target.result); renderReportImages(); };
-    reader.readAsDataURL(file);
-  });
-  input.value = '';
-}
-
-function renderReportImages() {
-  const grid = document.getElementById('report-img-grid');
-  if (!grid) return;
-  const items = _reportImages.map((src, i) => `
-    <div class="report-img-item">
-      <img src="${src}" alt="">
-      <button class="report-img-remove" onclick="removeReportImage(${i})">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>`).join('');
-  const addBtn = _reportImages.length < 8 ? `
-    <div class="report-img-add" onclick="document.getElementById('report-img-input').click()">
-      <i class="fa-solid fa-plus"></i><span>Add</span>
-    </div>` : '';
-  grid.innerHTML = items + addBtn;
-}
-
-function removeReportImage(idx) {
-  _reportImages.splice(idx, 1);
-  renderReportImages();
-}
-
-function submitReport() {
-  const name = document.getElementById('report-name')?.value?.trim();
-  const desc = document.getElementById('report-desc')?.value?.trim();
-  if (!desc) return showToast('Please describe the issue', 'warning');
-  showToast('Thank you for your report! 🙏', 'success', 4000);
-  clearReportForm();
-}
-
-function clearReportForm() {
-  showConfirm({
-    title: 'Clear Form',
-    msg: 'Clear all report form data?',
-    okLabel: 'Clear',
-    okClass: 'btn-danger',
-    onConfirm: () => {
-      _reportImages = [];
-      ['report-name','report-email','report-desc'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-      });
-      renderReportImages();
-      showToast('Form cleared', 'info');
-    }
-  });
-}
-
-// ── Documentation ─────────────────────────────────────────
-async function openDocumentation() {
-  const content = document.getElementById('docs-content');
-  if (!content) return;
-  content.innerHTML = '<div class="docs-loading"><div class="spinner"></div><span>Loading docs…</span></div>';
-  openModal('docs-modal');
-
-  try {
-    const res = await fetch('./README.md');
-    if (!res.ok) throw new Error('Not found');
-    const text = await res.text();
-    const html = renderMarkdown(text);
-    content.innerHTML = html;
-    buildDocsTOC(content);
-  } catch(e) {
-    // Try GitHub
-    try {
-      const res2 = await fetch('https://raw.githubusercontent.com/muhtasim-rahman/qr-prism/main/README.md');
-      if (!res2.ok) throw new Error();
-      const text2 = await res2.text();
-      content.innerHTML = renderMarkdown(text2);
-      buildDocsTOC(content);
-    } catch {
-      content.innerHTML = `
-        <div class="docs-loading" style="flex-direction:column; gap:12px;">
-          <i class="fa-brands fa-github" style="font-size:3rem; color:var(--muted);"></i>
-          <p style="color:var(--text2);">Could not load documentation.</p>
-          <a class="btn btn-primary" href="https://github.com/muhtasim-rahman/qr-prism" target="_blank" rel="noopener">
-            <i class="fa-brands fa-github"></i> View on GitHub
-          </a>
-        </div>`;
-    }
-  }
-}
-
-function buildDocsTOC(contentEl) {
-  const headings = contentEl.querySelectorAll('h1,h2,h3');
-  const tocList = document.getElementById('docs-toc-list');
-  const tocMobileList = document.getElementById('docs-toc-mobile-list');
-  if (!tocList) return;
-
-  let html = '';
-  headings.forEach((h, i) => {
-    const id = 'docs-h-' + i;
-    h.id = id;
-    const level = h.tagName.toLowerCase();
-    html += `<a class="docs-toc-item ${level}" href="#${id}" 
-               onclick="scrollToDocsHeading('${id}'); return false;">${h.textContent}</a>`;
-  });
-  tocList.innerHTML = html;
-  if (tocMobileList) tocMobileList.innerHTML = html;
-}
-
-function scrollToDocsHeading(id) {
-  const el = document.getElementById(id);
-  const contentArea = document.querySelector('.docs-content-area');
-  if (el && contentArea) {
-    contentArea.scrollTo({ top: el.offsetTop - 16, behavior: 'smooth' });
-  }
-  // Close mobile TOC
-  document.getElementById('docs-toc-mobile')?.classList.remove('open');
-}
-
-function toggleDocsTOC() {
-  const isMobile = window.innerWidth < 600;
-  if (isMobile) {
-    document.getElementById('docs-toc-mobile')?.classList.toggle('open');
-  } else {
-    const toc = document.getElementById('docs-toc');
-    if (toc) toc.style.display = toc.style.display === 'none' ? '' : 'none';
-  }
-}
-
-// ── GitHub-style Markdown renderer ────────────────────────
-function renderMarkdown(md) {
-  let html = md
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-  // Fenced code blocks
-  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
-    `<pre class="md-code"><code class="lang-${lang}">${code.trimEnd()}</code></pre>`);
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code class="md-inline">$1</code>');
-  // Headers (must come before bold/italic)
-  html = html.replace(/^######\s(.+)$/gm, '<h6>$1</h6>');
-  html = html.replace(/^#####\s(.+)$/gm,  '<h5>$1</h5>');
-  html = html.replace(/^####\s(.+)$/gm,   '<h4>$1</h4>');
-  html = html.replace(/^###\s(.+)$/gm,    '<h3>$1</h3>');
-  html = html.replace(/^##\s(.+)$/gm,     '<h2>$1</h2>');
-  html = html.replace(/^#\s(.+)$/gm,      '<h1>$1</h1>');
-  // Bold/italic
-  html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-  html = html.replace(/\*\*(.+?)\*\*/g,   '<strong>$1</strong>');
-  html = html.replace(/\*(.+?)\*/g,       '<em>$1</em>');
-  // Links & images
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener">$1</a>');
-  // HR
-  html = html.replace(/^---+$/gm, '<hr>');
-  // Tables (basic)
-  html = html.replace(/((?:^\|.+\|\n?)+)/gm, match => {
-    const rows = match.trim().split('\n');
-    if (rows.length < 2) return match;
-    const header = rows[0].split('|').filter(c => c.trim()).map(c => `<th>${c.trim()}</th>`).join('');
-    const body = rows.slice(2).map(r =>
-      '<tr>' + r.split('|').filter(c => c.trim()).map(c => `<td>${c.trim()}</td>`).join('') + '</tr>'
-    ).join('');
-    return `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
-  });
-  // Blockquotes
-  html = html.replace(/^&gt;\s(.+)$/gm, '<blockquote>$1</blockquote>');
-  // Lists
-  html = html.replace(/((?:^[-*+]\s.+\n?)+)/gm, match => {
-    const items = match.trim().split('\n')
-      .map(l => `<li>${l.replace(/^[-*+]\s/, '')}</li>`).join('');
-    return `<ul>${items}</ul>`;
-  });
-  html = html.replace(/((?:^\d+\.\s.+\n?)+)/gm, match => {
-    const items = match.trim().split('\n')
-      .map(l => `<li>${l.replace(/^\d+\.\s/, '')}</li>`).join('');
-    return `<ol>${items}</ol>`;
-  });
-  // Paragraphs
-  html = html.replace(/\n{2,}/g, '</p><p>');
-  html = '<p>' + html + '</p>';
-  html = html.replace(/<p>(<(?:h[1-6]|ul|ol|pre|blockquote|table|hr))/g, '$1');
-  html = html.replace(/(<\/(?:h[1-6]|ul|ol|pre|blockquote|table|hr)>)<\/p>/g, '$1');
-  html = html.replace(/<p>\s*<\/p>/g, '');
-
-  return `<div class="md-body">${html}</div>`;
-}
-
-// ── Import / Export JSON ──────────────────────────────────
-function exportProjects() {
-  const projects = loadProjects();
-  const count = projects.length;
-  const now = new Date();
-  const stamp = `${now.getDate().toString().padStart(2,'0')}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getFullYear()}_${now.getHours().toString().padStart(2,'0')}-${now.getMinutes().toString().padStart(2,'0')}`;
-  const filename = `qr-prism_projects_${count}_${stamp}.json`;
-  const payload = {
-    _copyright: '© QR Prism by Muhtasim Rahman (Turzo) — https://mdturzo.odoo.com',
-    _type: 'qr-prism-projects',
-    _version: '2.4',
-    _exported: now.toISOString(),
-    count,
-    projects
-  };
-  downloadJSON(payload, filename);
-  showToast(`Exported ${count} projects`, 'success');
-}
-
-function exportTemplates() {
-  const templates = loadUserTemplates();
-  const count = templates.length;
-  const now = new Date();
-  const stamp = `${now.getDate().toString().padStart(2,'0')}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getFullYear()}_${now.getHours().toString().padStart(2,'0')}-${now.getMinutes().toString().padStart(2,'0')}`;
-  const filename = `qr-prism_templates_${count}_${stamp}.json`;
-  const payload = {
-    _copyright: '© QR Prism by Muhtasim Rahman (Turzo) — https://mdturzo.odoo.com',
-    _type: 'qr-prism-templates',
-    _version: '2.4',
-    _exported: now.toISOString(),
-    count,
-    templates
-  };
-  downloadJSON(payload, filename);
-  showToast(`Exported ${count} templates`, 'success');
-}
-
-function downloadJSON(data, filename) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function handleImportFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const data = JSON.parse(e.target.result);
-      if (data._type === 'qr-prism-projects' && Array.isArray(data.projects)) {
-        const existing = loadProjects();
-        const merged = [...data.projects, ...existing];
-        saveProjectsData(merged);
-        showToast(`Imported ${data.projects.length} projects`, 'success');
-        if (_currentMode === 'projects') renderProjects();
-      } else if (data._type === 'qr-prism-templates' && Array.isArray(data.templates)) {
-        const existing = loadUserTemplates();
-        const merged = [...data.templates, ...existing];
-        saveUserTemplates(merged);
-        showToast(`Imported ${data.templates.length} templates`, 'success');
-        renderUserTemplates();
-      } else {
-        showToast('Unknown file format', 'error');
-      }
-    } catch {
-      showToast('Invalid JSON file', 'error');
-    }
-    closeModal('import-modal');
-    input.value = '';
-  };
-  reader.readAsText(file);
-}
-
-// ── Keyboard shortcuts ────────────────────────────────────
+// ── Keyboard Shortcuts ─────────────────────────────────────
 document.addEventListener('keydown', e => {
   if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
   const ctrl = e.ctrlKey || e.metaKey;
@@ -644,111 +20,478 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// ── Profile rendering ─────────────────────────────────────
-function renderProfile() {
-  const el = document.getElementById('profile-content');
-  if (!el) return;
-  const { profileName, profileEmail, profileBio, profileWeb, profileAvatarUrl } = SETTINGS;
-  const initials = profileName ? profileName.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : '?';
+// ── Theme ──────────────────────────────────────────────────
+function toggleDark() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  SETTINGS.theme = next;
+  saveSettingsData();
+  updateThemeIcons(next);
+  // Re-render pattern grids for theme-aware previews
+  renderPatternGrids();
+  renderFrameGrids();
+}
 
-  el.innerHTML = `
-    <div class="profile-header">
-      <div class="profile-avatar-large" id="profile-avatar-lg">
-        ${profileAvatarUrl
-          ? `<img src="${profileAvatarUrl}" alt="Avatar" onload="this.style.opacity=1" style="opacity:0;transition:opacity 0.3s;">`
-          : `<span>${initials}</span>`}
-        <div class="profile-avatar-edit" onclick="document.getElementById('profile-avatar-file').click()">
-          <i class="fa-solid fa-camera" style="color:#fff;"></i>
-        </div>
-      </div>
-      <input type="file" id="profile-avatar-file" accept="image/*" style="display:none;" onchange="handleProfileAvatar(this)">
-      <div class="profile-name">${escHtml(profileName || 'Guest User')}</div>
-      ${profileBio ? `<div class="profile-bio">${escHtml(profileBio)}</div>` : ''}
-    </div>
+function updateThemeIcons(theme) {
+  const isDark = theme === 'dark';
+  document.querySelectorAll('#sidebar-dark-icon, #topnav-dark-icon, #mobile-dark-icon, #bs-dark-icon')
+    .forEach(el => { el.className = isDark ? 'fa-solid fa-moon' : 'fa-solid fa-sun'; });
+}
 
-    <div class="settings-section">
-      <div class="settings-section-title"><i class="fa-solid fa-user"></i> Profile Info</div>
-      <div class="setting-row" style="flex-direction:column; align-items:flex-start; gap:6px;">
-        <div class="field-label">Display Name</div>
-        <input class="input" id="pf-name" value="${escHtml(profileName)}" placeholder="Your Name">
-      </div>
-      <div class="setting-row" style="flex-direction:column; align-items:flex-start; gap:6px;">
-        <div class="field-label">Email</div>
-        <input class="input" id="pf-email" type="email" value="${escHtml(profileEmail)}" placeholder="you@email.com">
-      </div>
-      <div class="setting-row" style="flex-direction:column; align-items:flex-start; gap:6px;">
-        <div class="field-label">Bio</div>
-        <input class="input" id="pf-bio" value="${escHtml(profileBio)}" placeholder="Short bio…">
-      </div>
-      <div class="setting-row" style="flex-direction:column; align-items:flex-start; gap:6px;">
-        <div class="field-label">Website</div>
-        <input class="input" id="pf-web" type="url" value="${escHtml(profileWeb)}" placeholder="https://…">
-      </div>
-      <div class="setting-row">
-        <span></span>
-        <button class="btn btn-primary btn-sm" onclick="saveProfile()">
-          <i class="fa-solid fa-floppy-disk"></i> Save Profile
-        </button>
-      </div>
-    </div>`;
+// ── Bottom Sheet ───────────────────────────────────────────
+function openBottomSheet() {
+  document.getElementById('bs-overlay').classList.add('open');
+  document.getElementById('bottom-sheet').classList.add('open');
+}
+function closeBottomSheet() {
+  document.getElementById('bs-overlay')?.classList.remove('open');
+  document.getElementById('bottom-sheet')?.classList.remove('open');
+}
 
-  // Auto-load avatar after DOM ready
-  if (profileAvatarUrl) {
-    setTimeout(() => {
-      const img = document.querySelector('#profile-avatar-lg img');
-      if (img) img.style.opacity = '1';
-    }, 100);
+// ── Mode Switching ─────────────────────────────────────────
+function switchMode(mode) {
+  // Scroll all views to top
+  document.querySelectorAll('.mode-view').forEach(v => {
+    v.classList.remove('active');
+    v.scrollTop = 0;
+  });
+  const target = document.getElementById('mode-' + mode);
+  if (target) { target.classList.add('active'); target.scrollTop = 0; }
+
+  // Also scroll main content to top
+  const mc = document.getElementById('main-content');
+  if (mc) mc.scrollTop = 0;
+
+  // Update nav active states
+  document.querySelectorAll('[data-mode]').forEach(el => {
+    el.classList.toggle('active', el.dataset.mode === mode);
+  });
+
+  // Hide tooltips
+  document.querySelectorAll('.tooltip-pop').forEach(t => {
+    t.style.opacity = ''; t.style.visibility = '';
+  });
+
+  // Page-specific init
+  if (mode === 'scan')   { setTimeout(() => { if (typeof startScanner === 'function') startScanner(); }, 300); }
+  else                   { if (typeof stopScanner === 'function') stopScanner(); }
+  if (mode === 'projects')        { renderProjects(); updateProjectCounts(); }
+  if (mode === 'settings')        { renderSettings(); }
+  if (mode === 'templates-manage') { renderTemplatesManage(); }
+  if (mode === 'profile')         { renderProfile(); }
+  if (mode === 'batch')           { renderBatchTemplateList(); }
+}
+
+// ── Modals ─────────────────────────────────────────────────
+function openModal(id) {
+  const m = document.getElementById(id);
+  if (!m) return;
+  m.classList.add('open');
+  setTimeout(() => { const inp = m.querySelector('input:not([type=file]), textarea'); if (inp) inp.focus(); }, 80);
+}
+function closeModal(id) {
+  document.getElementById(id)?.classList.remove('open');
+}
+
+// Close modal on overlay click
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-bg')) e.target.classList.remove('open');
+  if (!e.target.closest('.dl-wrap')) document.getElementById('dl-dropdown')?.classList.remove('open');
+});
+
+// ── Confirm helper ─────────────────────────────────────────
+function showConfirm({ title, msg, okLabel, okClass, items, onConfirm }) {
+  const t = document.getElementById('confirm-title');
+  const m = document.getElementById('confirm-msg');
+  const l = document.getElementById('confirm-list');
+  const ok = document.getElementById('confirm-ok-btn');
+  if (t) t.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="color:var(--warning)"></i> ${title || 'Confirm'}`;
+  if (m) m.textContent = msg || '';
+  if (l) { l.style.display = items?.length ? 'block' : 'none'; if (items?.length) l.innerHTML = items.map(i => `<div>• ${i}</div>`).join(''); }
+  if (ok) { ok.textContent = okLabel || 'Confirm'; ok.className = 'btn ' + (okClass || 'btn-danger'); ok.onclick = () => { closeModal('confirm-modal'); onConfirm?.(); }; }
+  openModal('confirm-modal');
+}
+
+// ── Toast notifications ────────────────────────────────────
+function showToast(msg, type = 'info', duration = 2800) {
+  const container = document.getElementById('toasts');
+  if (!container) return;
+  const icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.innerHTML = `<i class="fa-solid ${icons[type] || 'fa-info-circle'}"></i><span>${msg}</span>`;
+  container.appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 200); }, duration);
+}
+
+// ── PWA Banner ─────────────────────────────────────────────
+function renderPWABanner() {
+  const container = document.querySelector('#settings-content');
+  if (!container) return;
+
+  const installed = isPWAInstalled();
+  const banner = document.createElement('div');
+  banner.className = 'pwa-banner' + (installed ? ' pwa-installed-banner' : '');
+  banner.id = 'pwa-banner';
+
+  if (installed) {
+    banner.innerHTML = `
+      <div class="pwa-banner-icon"><i class="fa-solid fa-check-circle"></i></div>
+      <div class="pwa-banner-content">
+        <div class="pwa-banner-title">অ্যাপ সক্রিয় আছে</div>
+        <div class="pwa-banner-sub">আপনি অ্যাপ ভার্সন ব্যবহার করছেন।</div>
+      </div>
+      <div style="font-size:1.5rem;">✅</div>`;
+  } else {
+    banner.innerHTML = `
+      <div class="pwa-banner-icon"><i class="fa-solid fa-download"></i></div>
+      <div class="pwa-banner-content">
+        <div class="pwa-banner-title">অ্যাপ ইনস্টল করুন</div>
+        <div class="pwa-banner-sub">দ্রুত এবং অফলাইনে ব্যবহারের জন্য অ্যাপটি ইনস্টল করুন।</div>
+      </div>
+      <div class="pwa-banner-btn">
+        <button class="btn btn-primary btn-sm" onclick="installPWA()">ইনস্টল</button>
+      </div>`;
+  }
+  return banner;
+}
+
+// ── Documentation ──────────────────────────────────────────
+async function openDocumentation() {
+  openModal('docs-modal');
+  const contentEl = document.getElementById('docs-content');
+  const tocListEl = document.getElementById('docs-toc-list');
+  const tocMobile = document.getElementById('docs-toc-mobile-list');
+
+  if (contentEl && contentEl.dataset.loaded) return; // already loaded
+
+  if (contentEl) contentEl.innerHTML = '<div class="docs-loading"><div class="spin-ring"></div></div>';
+
+  try {
+    const res = await fetch('./README.md');
+    if (!res.ok) throw new Error('Not found');
+    const md = await res.text();
+
+    // Parse with marked
+    if (typeof marked !== 'undefined') {
+      const html = marked.parse(md);
+      if (contentEl) { contentEl.innerHTML = html; contentEl.dataset.loaded = '1'; }
+    } else {
+      // Fallback: basic markdown render
+      if (contentEl) { contentEl.innerHTML = `<pre>${md}</pre>`; contentEl.dataset.loaded = '1'; }
+    }
+
+    // Build TOC
+    const headers = contentEl ? contentEl.querySelectorAll('h1, h2, h3') : [];
+    let tocHtml = '';
+    headers.forEach((h, i) => {
+      if (!h.id) h.id = 'doc-h-' + i;
+      const level = h.tagName.toLowerCase();
+      const indent = level === 'h2' ? 'h2' : level === 'h3' ? 'h3' : '';
+      tocHtml += `<a class="docs-toc-item ${indent}" onclick="scrollDocTo('${h.id}'); toggleDocsTOC(false)">${h.textContent}</a>`;
+    });
+    if (tocListEl) tocListEl.innerHTML = tocHtml;
+    if (tocMobile) tocMobile.innerHTML = tocHtml;
+
+  } catch (err) {
+    if (contentEl) contentEl.innerHTML = `
+      <div class="empty-state">
+        <i class="fa-brands fa-github"></i>
+        <p>Documentation could not be loaded.<br>Visit <a href="https://github.com/muhtasim-rahman/qr-prism" target="_blank">GitHub</a> for full docs.</p>
+      </div>`;
   }
 }
 
-function saveProfile() {
-  SETTINGS.profileName  = document.getElementById('pf-name')?.value?.trim() || '';
-  SETTINGS.profileEmail = document.getElementById('pf-email')?.value?.trim() || '';
-  SETTINGS.profileBio   = document.getElementById('pf-bio')?.value?.trim() || '';
-  SETTINGS.profileWeb   = document.getElementById('pf-web')?.value?.trim() || '';
-  saveSettingsData();
-  updateSidebarProfile();
-  renderProfile();
-  showToast('Profile saved', 'success');
+function scrollDocTo(id) {
+  const el = document.getElementById(id);
+  const content = document.getElementById('docs-content');
+  if (el && content) content.scrollTo({ top: el.offsetTop - 20, behavior: 'smooth' });
 }
 
-function handleProfileAvatar(input) {
-  const file = input.files[0];
-  if (!file) return;
-  if (file.size > 2 * 1024 * 1024) return showToast('Max 2MB for avatar', 'warning');
-  const reader = new FileReader();
-  reader.onload = e => {
-    SETTINGS.profileAvatarUrl = e.target.result;
-    saveSettingsData();
-    renderProfile();
-    updateSidebarProfile();
-    showToast('Avatar updated', 'success');
-  };
-  reader.readAsDataURL(file);
+let docsTOCOpen = false;
+function toggleDocsTOC(forceState) {
+  const overlay = document.getElementById('docs-toc-overlay');
+  if (!overlay) return;
+  docsTOCOpen = forceState !== undefined ? forceState : !docsTOCOpen;
+  overlay.classList.toggle('open', docsTOCOpen);
 }
 
-function updateSidebarProfile() {
-  const { profileName, profileEmail, profileAvatarUrl } = SETTINGS;
-  const initials = profileName ? profileName.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : '?';
-  const avatar = document.getElementById('sp-avatar');
-  const nameEl = document.getElementById('sp-name');
-  const subEl  = document.getElementById('sp-sub');
+// ── Share App ──────────────────────────────────────────────
+async function shareApp() {
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'QR Prism – Advanced QR Code Generator',
+        text: 'Free, offline QR code generator with custom patterns, logos and templates.',
+        url: 'https://muhtasim-rahman.github.io/qr-prism/'
+      });
+    } catch {}
+  } else {
+    try {
+      await navigator.clipboard.writeText('https://muhtasim-rahman.github.io/qr-prism/');
+      showToast('Link copied!', 'success');
+    } catch { showToast('Share not supported', 'info'); }
+  }
+}
 
-  if (avatar) {
-    if (profileAvatarUrl) {
-      avatar.innerHTML = `<img src="${profileAvatarUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+// ── QR Size helpers ────────────────────────────────────────
+function adjSize(delta) {
+  S.size = Math.max(100, Math.min(2000, (S.size || 600) + delta));
+  const el = document.getElementById('qr-size');
+  if (el) el.value = S.size;
+  schedRender();
+}
+function setSize(v) {
+  S.size = v;
+  const el = document.getElementById('qr-size');
+  if (el) el.value = v;
+  schedRender();
+}
+
+// ── Copy to clipboard ──────────────────────────────────────
+function copyToClipboard() {
+  const canvas = document.getElementById('qr-canvas');
+  if (!canvas || canvas.style.display === 'none') { showToast('Generate a QR code first', 'info'); return; }
+  canvas.toBlob(blob => {
+    try {
+      navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+        .then(() => showToast('Copied to clipboard!', 'success'))
+        .catch(() => showToast('Copy not supported in this browser', 'info'));
+    } catch { showToast('Copy not supported', 'info'); }
+  });
+}
+
+// ── Share QR ───────────────────────────────────────────────
+async function shareQR() {
+  const canvas = document.getElementById('qr-canvas');
+  if (!canvas || canvas.style.display === 'none') { showToast('Generate a QR code first', 'info'); return; }
+  canvas.toBlob(async blob => {
+    const file = new File([blob], 'qrprism.png', { type: 'image/png' });
+    if (navigator.share && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: 'QR Code – QR Prism' }); }
+      catch {}
     } else {
-      avatar.textContent = initials;
+      downloadQR('png');
+    }
+  });
+}
+
+// ── Autosave status bar ────────────────────────────────────
+function setAutosaveStatus(status, text) {
+  const bar  = document.getElementById('autosave-bar');
+  const txt  = document.getElementById('autosave-txt');
+  const dot  = document.getElementById('autosave-dot');
+  if (!bar) return;
+  bar.className = 'autosave-bar ' + status;
+  if (txt) txt.textContent = text;
+}
+
+// ── Profile (sidebar avatar sync) ─────────────────────────
+function syncProfileUI() {
+  try {
+    const profile = JSON.parse(localStorage.getItem('qrs_profile') || '{}');
+    const name = profile.name || 'Guest User';
+    const sub  = profile.web || profile.email || 'Click to set up profile';
+    const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
+
+    const spName = document.getElementById('sp-name');
+    const spSub  = document.getElementById('sp-sub');
+    const spAv   = document.getElementById('sp-avatar');
+    const mAv    = document.getElementById('mobile-avatar-mini');
+
+    if (spName) spName.textContent = name;
+    if (spSub)  spSub.textContent  = sub;
+
+    const avatarContent = profile.avatar
+      ? `<img src="${profile.avatar}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+      : initials;
+
+    if (spAv)  spAv.innerHTML  = avatarContent;
+    if (mAv)   mAv.innerHTML   = avatarContent;
+  } catch (e) {}
+}
+
+// ── Report form helpers ────────────────────────────────────
+let _reportType = 'bug';
+function selectReportType(btn, type) {
+  _reportType = type;
+  document.querySelectorAll('.rtype-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+const _reportImages = [];
+function handleReportImages(input) {
+  const files = Array.from(input.files);
+  const remaining = 8 - _reportImages.length;
+  files.slice(0, remaining).forEach(file => {
+    if (file.size > 5 * 1024 * 1024) { showToast(`${file.name} too large (max 5MB)`, 'error'); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      _reportImages.push(e.target.result);
+      renderReportImages();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderReportImages() {
+  const grid = document.getElementById('report-img-grid');
+  if (!grid) return;
+  let html = _reportImages.map((src, i) => `
+    <div class="report-img-thumb">
+      <img src="${src}" alt="screenshot">
+      <div class="remove-img" onclick="removeReportImage(${i})"><i class="fa-solid fa-xmark"></i></div>
+    </div>`).join('');
+  if (_reportImages.length < 8) {
+    html += `<div class="report-img-add" onclick="document.getElementById('report-img-input').click()">
+      <i class="fa-solid fa-plus"></i><span>Add image</span></div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function removeReportImage(idx) {
+  _reportImages.splice(idx, 1);
+  renderReportImages();
+}
+
+function submitReport() {
+  const name = document.getElementById('report-name')?.value.trim();
+  const email = document.getElementById('report-email')?.value.trim();
+  const desc = document.getElementById('report-desc')?.value.trim();
+  if (!desc) { showToast('Please describe the issue', 'error'); return; }
+
+  // Simulate submit (no backend) — save to localStorage for reference
+  const report = {
+    id: Date.now(),
+    type: _reportType,
+    name, email, desc,
+    images: _reportImages.length,
+    date: new Date().toISOString(),
+    appVersion: 'v2.5',
+    ua: navigator.userAgent
+  };
+  try {
+    const prev = JSON.parse(localStorage.getItem('qrs_reports') || '[]');
+    prev.push(report);
+    localStorage.setItem('qrs_reports', JSON.stringify(prev));
+  } catch {}
+
+  showToast('Report submitted! Thank you.', 'success');
+  clearReportForm();
+}
+
+function clearReportForm() {
+  showConfirm({
+    title: 'Clear Form',
+    msg: 'Are you sure you want to clear all report fields?',
+    okLabel: 'Clear',
+    okClass: 'btn-danger',
+    onConfirm: () => {
+      const fields = ['report-name', 'report-email', 'report-desc'];
+      fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      _reportImages.length = 0;
+      renderReportImages();
+      _reportType = 'bug';
+      document.querySelectorAll('.rtype-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+    }
+  });
+}
+
+// ── Project counts & badge ─────────────────────────────────
+function updateProjectCounts() {
+  try {
+    const all = JSON.parse(localStorage.getItem('qrs_projects') || '[]');
+    const saved  = all.filter(p => p.type === 'saved').length;
+    const auto   = all.filter(p => p.type === 'auto').length;
+    const pinned = all.filter(p => p.pinned).length;
+    const total  = all.length;
+
+    const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    setEl('saved-count', saved);
+    setEl('auto-count', auto);
+    setEl('pinned-count', pinned);
+    setEl('sidebar-project-count', total);
+
+    const badge = document.getElementById('bn-project-badge');
+    if (badge) { badge.textContent = total; badge.style.display = total > 0 ? 'flex' : 'none'; }
+  } catch {}
+}
+
+// ── Scan helpers (used in scanner.js) ─────────────────────
+function openScannedURL() {
+  const data = document.getElementById('scan-data')?.textContent;
+  if (!data) return;
+  if (data.startsWith('http')) { window.open(data, '_blank', 'noopener'); }
+  else { showToast('Not a URL', 'info'); }
+}
+
+function copyScanned() {
+  const data = document.getElementById('scan-data')?.textContent;
+  if (!data) return;
+  navigator.clipboard.writeText(data).then(() => showToast('Copied!', 'success')).catch(() => showToast('Copy failed', 'error'));
+}
+
+function loadScannedInGen() {
+  const data = document.getElementById('scan-data')?.textContent;
+  if (!data) return;
+  switchMode('gen');
+  setTimeout(() => {
+    const urlInput = document.getElementById('f-url');
+    const textInput = document.getElementById('f-text');
+    if (urlInput && data.startsWith('http')) { urlInput.value = data; }
+    else if (textInput) { textInput.value = data; }
+    schedRender();
+  }, 200);
+}
+
+// ── Mobile tooltip handling ────────────────────────────────
+document.addEventListener('click', e => {
+  // Close mobile tooltips on tap outside
+  if (window.innerWidth <= 768) {
+    const wrap = e.target.closest('.tooltip-wrap');
+    document.querySelectorAll('.tooltip-pop').forEach(tip => {
+      const parent = tip.closest('.tooltip-wrap');
+      if (parent !== wrap) {
+        tip.style.opacity = '0';
+        tip.style.visibility = 'hidden';
+      }
+    });
+    if (wrap) {
+      const tip = wrap.querySelector('.tooltip-pop');
+      if (tip) {
+        const isVisible = tip.style.opacity === '1';
+        tip.style.opacity = isVisible ? '0' : '1';
+        tip.style.visibility = isVisible ? 'hidden' : 'visible';
+      }
     }
   }
-  if (nameEl) nameEl.textContent = profileName || 'Guest User';
-  if (subEl)  subEl.textContent  = profileEmail || 'Click to set up profile';
+}, true);
+
+// Prevent tooltips from overflowing on small screens
+function fixTooltipPositions() {
+  document.querySelectorAll('.tooltip-pop').forEach(tip => {
+    const rect = tip.getBoundingClientRect();
+    if (rect.right > window.innerWidth - 8) {
+      tip.style.left = 'auto';
+      tip.style.right = '0';
+      tip.style.transform = 'none';
+    }
+    if (rect.left < 8) {
+      tip.style.left = '0';
+      tip.style.transform = 'none';
+    }
+  });
 }
 
-// ── Init ──────────────────────────────────────────────────
+// ── Main Initialization ────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
+  // Apply theme
   loadSettings();
-  applyTheme(SETTINGS.theme);
+  updateThemeIcons(document.documentElement.getAttribute('data-theme'));
+
+  // Render UI
   renderTypeTabs();
   renderTypeTab(S.activeType);
   renderPatternGrids();
@@ -756,25 +499,133 @@ window.addEventListener('DOMContentLoaded', () => {
   renderLogoGrid();
   renderPresetTemplates();
   renderUserTemplates();
-  updateSidebarProfile();
+
+  // Sync profile UI
+  syncProfileUI();
+
+  // Set active mode
   switchMode('gen');
-  renderReportImages();
-  updateProjectCountBadge();
+
+  // Update project counts
+  updateProjectCounts();
+
+  // Initialize Pickr color pickers if available
+  if (typeof Pickr !== 'undefined') {
+    initPickrPickers();
+  }
 
   // PWA events
   document.addEventListener('pwa-installable', () => {
-    if (_currentMode === 'settings') renderSettings();
-  });
-  document.addEventListener('pwa-installed', () => {
-    if (_currentMode === 'settings') renderSettings();
-  });
-
-  // Init first cards open, rest collapsed
-  const cards = document.querySelectorAll('.settings-panel .card-header');
-  cards.forEach((h, i) => {
-    if (i >= 2) {
-      h.classList.remove('open');
-      h.nextElementSibling?.classList.add('hidden');
+    // Re-render settings if open
+    if (document.getElementById('mode-settings')?.classList.contains('active')) {
+      renderSettings();
     }
   });
+  document.addEventListener('pwa-installed', () => {
+    showToast('QR Prism installed successfully!', 'success');
+    if (document.getElementById('mode-settings')?.classList.contains('active')) {
+      renderSettings();
+    }
+  });
+
+  // Batch input counter
+  const batchInput = document.getElementById('batch-input');
+  if (batchInput) {
+    batchInput.addEventListener('input', () => {
+      const lines = batchInput.value.split('\n').filter(l => l.trim()).length;
+      const hint = document.getElementById('batch-count-hint');
+      if (hint) hint.textContent = lines + ' item' + (lines !== 1 ? 's' : '');
+    });
+  }
+
+  console.log('🎉 QR Prism v2.5 initialized');
 });
+
+// ── Pickr Integration ──────────────────────────────────────
+const _pickrInstances = {};
+
+function initPickrPickers() {
+  const pickers = [
+    { id: 'fg-pickr-wrap',  stateKey: 'fgColor',         default: '#000000' },
+    { id: 'bg-pickr-wrap',  stateKey: 'bgColor',         default: '#ffffff' },
+    { id: 'gc1-pickr-wrap', stateKey: 'gc1',             default: '#818CF8' },
+    { id: 'gc2-pickr-wrap', stateKey: 'gc2',             default: '#C084FC' },
+    { id: 'mb-pickr-wrap',  stateKey: 'mbColor',         default: '#000000' },
+    { id: 'mc-pickr-wrap',  stateKey: 'mcColor',         default: '#000000' },
+    { id: 'ef-pickr-wrap',  stateKey: 'efColor',         default: '#000000' },
+    { id: 'ei-pickr-wrap',  stateKey: 'eiColor',         default: '#000000' },
+    { id: 'flc-pickr-wrap', stateKey: 'frameLabelColor', default: '#ffffff' },
+    { id: 'fc-pickr-wrap',  stateKey: 'frameColor',      default: '#818CF8' },
+    { id: 'fc2-pickr-wrap', stateKey: 'frameColor',      default: '#818CF8' },
+    { id: 'lpc-pickr-wrap', stateKey: 'logoPadColor',    default: '#ffffff' },
+    { id: 'sc-pickr-wrap',  stateKey: 'shadowColor',     default: '#000000' },
+  ];
+
+  pickers.forEach(({ id, stateKey, default: def }) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    try {
+      const instance = Pickr.create({
+        el,
+        theme: 'nano',
+        default: S[stateKey] || def,
+        components: {
+          preview: true, opacity: false, hue: true,
+          interaction: { hex: true, rgba: false, input: true, save: true, cancel: true }
+        },
+        i18n: { 'btn:save': 'Apply', 'btn:cancel': 'Cancel' }
+      });
+      instance.on('save', color => {
+        if (!color) return;
+        const hex = color.toHEXA().toString();
+        S[stateKey] = hex;
+        schedRender();
+        instance.hide();
+      });
+      _pickrInstances[stateKey] = instance;
+    } catch (e) {
+      // Fallback to simple color input
+      el.innerHTML = `<input type="color" value="${S[stateKey] || def}"
+        style="width:36px;height:36px;border:2px solid var(--border);border-radius:9px;cursor:pointer;"
+        oninput="S['${stateKey}']=this.value; schedRender()">`;
+    }
+  });
+}
+
+// Update pickr when state changes externally (e.g. template apply)
+function updatePickrColors() {
+  Object.entries(_pickrInstances).forEach(([key, inst]) => {
+    try { inst.setColor(S[key] || '#000000'); } catch {}
+  });
+}
+
+// ── Undo / Redo ────────────────────────────────────────────
+const _undoStack = [];
+const _redoStack = [];
+const MAX_UNDO = 30;
+
+function pushUndo() {
+  _undoStack.push(JSON.stringify(S));
+  if (_undoStack.length > MAX_UNDO) _undoStack.shift();
+  _redoStack.length = 0;
+}
+
+function undo() {
+  if (!_undoStack.length) { showToast('Nothing to undo', 'info'); return; }
+  _redoStack.push(JSON.stringify(S));
+  const prev = JSON.parse(_undoStack.pop());
+  Object.assign(S, prev);
+  syncAllUI();
+  updatePickrColors();
+  renderQR();
+}
+
+function redo() {
+  if (!_redoStack.length) { showToast('Nothing to redo', 'info'); return; }
+  _undoStack.push(JSON.stringify(S));
+  const next = JSON.parse(_redoStack.pop());
+  Object.assign(S, next);
+  syncAllUI();
+  updatePickrColors();
+  renderQR();
+}

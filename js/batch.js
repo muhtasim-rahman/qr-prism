@@ -1,134 +1,178 @@
 // =========================================================
-// batch.js — Batch QR Generator (template-based)
-// QR Prism v2.4
+// BATCH.JS — Bulk QR code generation + ZIP download
 // =========================================================
 
-let _batchTemplate = null;
-let _batchResults = [];
+let _batchResults = []; // { canvas, name }[]
 
+// ── Start batch generation ───────────────────────────────
+async function startBatch() {
+  const txt = (document.getElementById('batch-input').value || '').trim();
+  if (!txt) { showToast('Enter at least one URL or text!', 'warning'); return; }
+
+  const lines = txt.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length > 200) { showToast('Max 200 items per batch!', 'warning'); return; }
+
+  const size = parseInt(document.getElementById('batch-size').value) || 512;
+  _batchResults = [];
+
+  // Show progress
+  document.getElementById('batch-progress-card').style.display = 'block';
+  document.getElementById('batch-dl-btn').style.display = 'none';
+  document.getElementById('batch-preview').innerHTML = '';
+
+  for (let i = 0; i < lines.length; i++) {
+    const data = lines[i];
+    const pct  = Math.round((i + 1) / lines.length * 100);
+
+    document.getElementById('batch-prog-fill').style.width  = pct + '%';
+    document.getElementById('batch-prog-num').textContent   = `${i + 1} / ${lines.length}`;
+    document.getElementById('batch-prog-txt').textContent   = `Generating #${i + 1}…`;
+
+    // Yield to browser to keep UI responsive
+    await new Promise(r => setTimeout(r, 8));
+
+    try {
+      const canvas = _renderSingleQR(data, size);
+      if (!canvas) continue;
+
+      const safeName = data.substring(0, 40).replace(/[^a-z0-9]/gi, '_') || ('qr_' + i);
+      _batchResults.push({ canvas, name: safeName });
+
+      // Add preview tile
+      const div = document.createElement('div');
+      div.className = 'b-item';
+      const pc = document.createElement('canvas');
+      pc.width = 80; pc.height = 80;
+      pc.getContext('2d').drawImage(canvas, 0, 0, 80, 80);
+      const lbl = document.createElement('span');
+      lbl.textContent = data.length > 20 ? data.substring(0, 20) + '…' : data;
+      div.appendChild(pc);
+      div.appendChild(lbl);
+      document.getElementById('batch-preview').appendChild(div);
+    } catch (e) {
+      console.warn('Batch item error:', e);
+    }
+  }
+
+  document.getElementById('batch-prog-txt').textContent = `✅ Done! ${_batchResults.length} QR codes ready.`;
+  if (_batchResults.length > 0) {
+    document.getElementById('batch-dl-btn').style.display = 'inline-flex';
+    showToast(`Generated ${_batchResults.length} QR codes!`, 'success');
+  } else {
+    showToast('No QR codes generated', 'warning');
+  }
+}
+
+// ── Render a single QR canvas synchronously ──────────────
+function _renderSingleQR(data, size) {
+  const modules = getMatrix(data, 'H');
+  if (!modules) return null;
+
+  const count  = modules.length;
+  const qz     = 4;
+  const total  = count + qz * 2;
+  const cs     = size / total;
+  const qzPx   = qz * cs;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = size;
+  canvas.height = size;
+  const ctx     = canvas.getContext('2d');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+
+  // Body modules
+  for (let row = 0; row < count; row++) {
+    for (let col = 0; col < count; col++) {
+      if (isInFinder(row, col, count)) continue;
+      if (!modules[row][col]) continue;
+      drawModule(ctx, qzPx + col * cs, qzPx + row * cs, cs, 'square', '#000000');
+    }
+  }
+
+  // Eyes
+  [{ r:0, c:0 }, { r:0, c:count-7 }, { r:count-7, c:0 }].forEach(ep => {
+    drawEye(ctx, qzPx + ep.c * cs, qzPx + ep.r * cs, cs, 'square', 'square', '#000000', '#000000', '#ffffff');
+  });
+
+  return canvas;
+}
+
+// ── Download batch as ZIP (or individual files if no JSZip) ──
+async function downloadBatch() {
+  if (!_batchResults.length) { showToast('Nothing to download', 'warning'); return; }
+
+  const fmt = document.getElementById('batch-fmt').value || 'png';
+  const mimeType = fmt === 'jpg' ? 'image/jpeg' : 'image/png';
+  const ext      = fmt === 'jpg' ? 'jpg' : 'png';
+
+  // Try JSZip first (loaded from CDN if available)
+  if (typeof JSZip !== 'undefined') {
+    showToast('Creating ZIP file…', 'info');
+    const zip    = new JSZip();
+    const folder = zip.folder('qr-codes');
+
+    _batchResults.forEach(b => {
+      const dataUrl = b.canvas.toDataURL(mimeType, 0.92);
+      const base64  = dataUrl.split(',')[1];
+      folder.file(`${b.name}.${ext}`, base64, { base64: true });
+    });
+
+    try {
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+      const link = document.createElement('a');
+      link.download = `qr-batch-${Date.now()}.zip`;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+      showToast('ZIP downloaded!', 'success');
+    } catch (e) {
+      showToast('ZIP failed: ' + e.message, 'error');
+    }
+
+  } else {
+    // Fallback: download each file individually with a delay
+    showToast(`Downloading ${_batchResults.length} files…`, 'info');
+    for (let i = 0; i < _batchResults.length; i++) {
+      await new Promise(r => setTimeout(r, 250));
+      const b    = _batchResults[i];
+      const link = document.createElement('a');
+      link.download = `${b.name}.${ext}`;
+      link.href     = b.canvas.toDataURL(mimeType, 0.92);
+      link.click();
+    }
+    showToast('All files downloaded!', 'success');
+  }
+}
+
+// ── Render Batch Template List ─────────────────────────────
 function renderBatchTemplateList() {
   const list = document.getElementById('batch-template-list');
   if (!list) return;
   const templates = loadUserTemplates();
   if (!templates.length) {
-    list.innerHTML = `
-      <div class="empty-state" style="padding:16px;">
-        <i class="fa-solid fa-bookmark"></i>
-        <p>No saved templates yet.<br>
-          <button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="switchMode('gen')">
-            <i class="fa-solid fa-wand-magic-sparkles"></i> Go to Generator
-          </button>
-        </p>
-      </div>`;
+    list.innerHTML = `<div class="empty-msg" style="padding:12px;color:var(--muted);">
+      <i class="fa-solid fa-bookmark"></i> কোনো সেভ করা টেমপ্লেট নেই।
+      <br><small>Generator থেকে একটি ডিজাইন সেভ করুন।</small>
+    </div>`;
     return;
   }
-  list.innerHTML = templates.map((t, i) => `
-    <div class="batch-tmpl-option ${_batchTemplate === i ? 'active' : ''}"
-         onclick="selectBatchTemplate(${i}, this)">
-      <canvas width="40" height="40" id="btprev-${i}"></canvas>
-      <span>${escHtml(t.name)}</span>
-    </div>`).join('');
-  templates.forEach((t, i) => drawTemplatePreview('btprev-' + i, t));
+  list.innerHTML = templates.map(t => `
+    <label class="batch-tmpl-row">
+      <input type="radio" name="batch-tmpl" value="${t.id}"
+             onchange="selectBatchTemplate('${t.id}')">
+      <div class="batch-tmpl-dot" style="background:${t.design?.fgColor||'#000'};"></div>
+      <span>${escHtmlT(t.name)}</span>
+    </label>`).join('');
 }
 
-function selectBatchTemplate(idx, el) {
-  _batchTemplate = idx;
-  document.querySelectorAll('.batch-tmpl-option').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
-}
-
-async function startBatch() {
-  const input = document.getElementById('batch-input')?.value?.trim();
-  if (!input) return showToast('Enter some data first', 'warning');
-
-  const lines = input.split('\n').map(l => l.trim()).filter(Boolean);
-  if (!lines.length) return showToast('No valid lines found', 'warning');
-  if (lines.length > 100) return showToast('Max 100 QR codes per batch', 'warning');
-
-  const settings = _batchTemplate !== null ? (loadUserTemplates()[_batchTemplate]?.settings || {}) : {};
-
-  const progressCard = document.getElementById('batch-progress-card');
-  const progFill = document.getElementById('batch-prog-fill');
-  const progTxt  = document.getElementById('batch-prog-txt');
-  const progNum  = document.getElementById('batch-prog-num');
-  const preview  = document.getElementById('batch-preview');
-
-  if (progressCard) progressCard.style.display = '';
-  if (preview) preview.innerHTML = '';
-  _batchResults = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const pct = Math.round(((i + 1) / lines.length) * 100);
-    if (progFill) progFill.style.width = pct + '%';
-    if (progTxt) progTxt.textContent = `Generating… ${pct}%`;
-    if (progNum) progNum.textContent = `${i+1} / ${lines.length}`;
-
-    const dataUrl = await generateBatchQR(lines[i], settings);
-    _batchResults.push({ data: lines[i], dataUrl });
-    appendBatchResult(lines[i], dataUrl, i);
-    await new Promise(r => setTimeout(r, 10));
+let _batchDesign = null;
+function selectBatchTemplate(id) {
+  const templates = loadUserTemplates();
+  const tmpl = templates.find(t => t.id === id);
+  if (tmpl) {
+    _batchDesign = tmpl.design;
+    showToast(`"${tmpl.name}" সিলেক্ট হয়েছে`, 'success');
   }
-
-  if (progressCard) progressCard.style.display = 'none';
-  if (progTxt) progTxt.textContent = 'Generating…';
-  const dlBtn = document.getElementById('batch-dl-btn');
-  if (dlBtn) dlBtn.style.display = '';
-  showToast(`Generated ${lines.length} QR codes!`, 'success');
-}
-
-async function generateBatchQR(data, settings) {
-  return new Promise(resolve => {
-    const div = document.createElement('div');
-    div.style.cssText = 'position:fixed;visibility:hidden;left:-9999px;top:-9999px;';
-    document.body.appendChild(div);
-    try {
-      new QRCode(div, {
-        text: data || ' ', width: 400, height: 400,
-        colorDark: settings.fgColor || '#000000',
-        colorLight: settings.bgColor || '#ffffff',
-        correctLevel: QRCode.CorrectLevel[settings.errorLevel] || QRCode.CorrectLevel.M
-      });
-      setTimeout(() => {
-        const img = div.querySelector('img') || div.querySelector('canvas');
-        const src = img?.src || img?.toDataURL?.() || '';
-        div.remove(); resolve(src);
-      }, 80);
-    } catch(e) { div.remove(); resolve(''); }
-  });
-}
-
-function appendBatchResult(data, dataUrl, idx) {
-  const wrap = document.getElementById('batch-preview');
-  if (!wrap) return;
-  const item = document.createElement('div');
-  item.className = 'batch-result-item';
-  item.innerHTML = `
-    ${dataUrl ? `<img src="${dataUrl}" alt="QR" class="batch-result-img">` : '<div class="batch-result-img" style="background:var(--card2);border-radius:8px;"></div>'}
-    <div class="batch-result-data">${escHtml(truncate(data, 40))}</div>
-    <button class="btn btn-ghost btn-sm" onclick="downloadBatchItem(${idx})">
-      <i class="fa-solid fa-download"></i>
-    </button>`;
-  wrap.appendChild(item);
-}
-
-function downloadBatchItem(idx) {
-  const item = _batchResults[idx];
-  if (!item?.dataUrl) return;
-  const a = document.createElement('a');
-  a.href = item.dataUrl;
-  a.download = `qr-prism-batch-${idx + 1}.png`;
-  a.click();
-}
-
-function downloadBatch() {
-  if (!_batchResults.length) return showToast('No batch results', 'warning');
-  // Individual download loop (ZIP would require JSZip integration)
-  let i = 0;
-  const dl = () => {
-    if (i >= _batchResults.length) return;
-    downloadBatchItem(i++);
-    setTimeout(dl, 120);
-  };
-  showToast(`Downloading ${_batchResults.length} QR codes…`, 'info');
-  dl();
 }
