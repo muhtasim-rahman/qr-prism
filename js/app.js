@@ -1,65 +1,60 @@
 // =========================================================
-// js/app.js — Application bootstrap V2.0
+// app.js — Initialization, keyboard shortcuts
 // =========================================================
 
-document.addEventListener('DOMContentLoaded', () => {
+// ── Keyboard Shortcuts ────────────────────────────────────
+document.addEventListener('keydown', e => {
+  // Ignore if typing in input
+  if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
 
-  // ── Theme init ─────────────────────────────────────────
-  const savedTheme = localStorage.getItem('theme') || 'light';
-  document.documentElement.setAttribute('data-theme', savedTheme);
-  const icon = document.getElementById('dark-icon');
-  if (icon) icon.className = savedTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+  const ctrl = e.ctrlKey || e.metaKey;
+  if (ctrl && e.key === 'd') { e.preventDefault(); downloadQR('png'); }
+  if (ctrl && e.key === 's') { e.preventDefault(); openSaveModal(); }
+  if (ctrl && e.key === 'c') { e.preventDefault(); copyToClipboard(); }
+  if (ctrl && e.key === 'z') { e.preventDefault(); undo(); }
+  if (ctrl && e.key === 'y') { e.preventDefault(); redo(); }
+  if (e.key === 'd' && !ctrl) toggleDark();
+  if (e.key === '?') openModal('kb-modal');
+});
 
-  // ── Sidebar state ───────────────────────────────────────
-  const savedCollapsed = localStorage.getItem('sidebar_collapsed') === '1';
-  if (savedCollapsed) {
-    document.getElementById('app-sidebar')?.classList.add('collapsed');
-    document.getElementById('main-content')?.classList.add('sidebar-collapsed');
-    _sidebarCollapsed = savedCollapsed;
-  }
+// ── Init ──────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  // Load settings and apply theme
+  loadSettings();
 
-  // ── Build all UI ────────────────────────────────────────
-  buildTypeChips();
-  switchQRType('url', false);
-  buildDesignGrids();
-  buildLogoGrid();
-  renderPremiumTemplates();
+  // Render type tabs
+  renderTypeTabs();
+
+  // Render default type form
+  renderTypeTab(S.activeType);
+
+  // Render pattern grids
+  renderPatternGrids();
+
+  // Render frame grids
+  renderFrameGrids();
+
+  // Render logo grid
+  renderLogoGrid();
+
+  // Render templates
+  renderPresetTemplates();
   renderUserTemplates();
-  updateProjectsBadge();
 
-  // ── Keyboard shortcuts ──────────────────────────────────
-  document.addEventListener('keydown', e => {
-    if (e.target.matches('input,textarea,select')) return;
-    if (e.ctrlKey || e.metaKey) {
-      switch (e.key) {
-        case 'd': e.preventDefault(); downloadQR('png'); break;
-        case 's': e.preventDefault(); openSaveTemplateModal(); break;
-        case 'c': e.preventDefault(); copyToClipboard(); break;
-        case 'z': e.preventDefault(); undo(); break;
-        case 'y': e.preventDefault(); redo(); break;
-      }
-    } else {
-      switch (e.key) {
-        case 'd': toggleDark(); break;
-        case '?': openModal('kb-modal'); break;
-      }
+  // Set generator as active mode
+  switchMode('gen');
+
+  // Init tooltips
+  document.querySelectorAll('[data-tip]').forEach(el => {
+    el.title = el.dataset.tip;
+  });
+
+  // Lazy render card bodies (all collapsed except first 2)
+  const cards = document.querySelectorAll('.card-header');
+  cards.forEach((h, i) => {
+    if (i >= 3) {
+      h.classList.remove('open');
+      h.nextElementSibling?.classList.add('hidden');
     }
   });
-
-  // ── Sidebar overlay click ───────────────────────────────
-  document.getElementById('sidebar-overlay')?.addEventListener('click', closeSidebar);
-
-  // ── Close modals on background click ───────────────────
-  document.querySelectorAll('.modal-bg').forEach(bg => {
-    bg.addEventListener('click', e => { if (e.target === bg) bg.classList.remove('active'); });
-  });
-
-  // ── Auto-render QR on first load if URL param exists ───
-  const urlParam = new URLSearchParams(window.location.search).get('url');
-  if (urlParam) {
-    const f = document.getElementById('f-url');
-    if (f) { f.value = urlParam; schedRender(); }
-  }
-
-  console.log('QR Studio Pro V2.0 initialized ✓');
 });

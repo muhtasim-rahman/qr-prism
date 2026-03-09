@@ -1,240 +1,286 @@
 // =========================================================
-// js/projects.js — QR Project System (replaces History)
-// Saves unique QR codes as projects, not per-character
+// projects.js — QR Projects Page (replaces History)
+// Saves unique QR codes, prevents per-character duplicates
+// Data stored as JSON in localStorage
 // =========================================================
 
 const PROJECTS_KEY = 'qrs_projects_v2';
-let   currentProjectId = null; // currently active project
 
 // ── Load / Save ──────────────────────────────────────────
-function getAllProjects() {
-  try { return JSON.parse(localStorage.getItem(PROJECTS_KEY) || '[]'); } catch { return []; }
-}
-function saveAllProjects(projects) {
-  try { localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects)); } catch (e) {
-    showToast('Storage full — delete some projects', 'error');
-  }
-}
-
-// ── Auto-save logic: only saves when data actually changes ─
-let _lastAutoData = null;
-function autoSaveProject(data) {
-  if (!data || data === _lastAutoData) return; // no change
-  _lastAutoData = data;
-
-  if (!currentProjectId) {
-    // New project
-    currentProjectId = 'proj_' + Date.now();
-    const projects = getAllProjects();
-    projects.unshift({
-      id: currentProjectId,
-      data,
-      name: '',
-      tags: [],
-      type: S.activeType,
-      settings: JSON.parse(JSON.stringify(S)),
-      thumb: getThumb(),
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-    saveAllProjects(projects);
-  } else {
-    // Update existing project
-    const projects = getAllProjects();
-    const idx = projects.findIndex(p => p.id === currentProjectId);
-    if (idx === -1) { currentProjectId = null; autoSaveProject(data); return; }
-    projects[idx].data      = data;
-    projects[idx].type      = S.activeType;
-    projects[idx].settings  = JSON.parse(JSON.stringify(S));
-    projects[idx].thumb     = getThumb();
-    projects[idx].updatedAt = Date.now();
-    saveAllProjects(projects);
-  }
-
-  // Update project badge count
-  updateProjectsBadge();
-}
-
-function getThumb() {
+function loadProjects() {
   try {
-    const canvas = document.getElementById('qr-canvas');
-    if (!canvas || canvas.style.display === 'none') return '';
-    const tmp = document.createElement('canvas'); tmp.width = 80; tmp.height = 80;
-    tmp.getContext('2d').drawImage(canvas, 0, 0, 80, 80);
-    return tmp.toDataURL();
-  } catch { return ''; }
+    return JSON.parse(localStorage.getItem(PROJECTS_KEY)) || [];
+  } catch (e) { return []; }
 }
 
-// ── Create a brand new project (from scratch) ─────────────
-function newProject() {
-  currentProjectId = null;
-  _lastAutoData    = null;
-  // Reset to defaults but keep design preferences
-  S.inputData  = '';
-  S.activeType = 'url';
-  // Clear all inputs
-  document.querySelectorAll('.qr-input').forEach(el => {
-    if (el.type === 'checkbox') el.checked = false;
-    else if (el.tagName === 'SELECT') el.selectedIndex = 0;
-    else el.value = '';
-  });
-  switchQRType('url');
-  renderQR();
-  showToast('New project started', 'info');
+function saveProjectsData(projects) {
+  try { localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects)); } catch (e) {}
 }
 
-// ── Render the projects page ──────────────────────────────
-function renderProjectsView(search = '') {
-  const container = document.getElementById('projects-list');
-  if (!container) return;
+// ── Auto-save debounce (prevents per-character saves) ────
+let autoSaveTimer = null;
+let pendingAutoData = null;
 
-  let projects = getAllProjects();
+function autoSaveToProjects(data) {
+  if (!SETTINGS.autoSaveProjects) return;
+  if (!data || !data.trim()) return;
+  pendingAutoData = data;
+  clearTimeout(autoSaveTimer);
+  // Only save after user stops typing for 1.5s
+  autoSaveTimer = setTimeout(() => {
+    if (pendingAutoData) _doAutoSave(pendingAutoData);
+    pendingAutoData = null;
+  }, 1500);
+}
 
-  // Search filter
-  if (search.trim()) {
-    const q = search.toLowerCase();
+function _doAutoSave(data) {
+  const projects = loadProjects();
+  // Check if this exact data already exists
+  const exists = projects.find(p => p.data === data);
+  if (exists) return; // No duplicate
+
+  const entry = {
+    id:      'proj_' + Date.now(),
+    data:    data,
+    type:    S.activeType,
+    name:    '', // user can name it later
+    tags:    [],
+    date:    new Date().toISOString(),
+    design:  captureDesignSnapshot(),
+  };
+  projects.unshift(entry);
+  // Keep max 200
+  if (projects.length > 200) projects.pop();
+  saveProjectsData(projects);
+  // Refresh if on projects page
+  if (document.getElementById('mode-projects')?.style.display !== 'none') {
+    renderProjects();
+  }
+}
+
+// ── Capture current design state for a project entry ─────
+function captureDesignSnapshot() {
+  return {
+    pattern:  S.pattern,
+    eyeFrame: S.eyeFrame,
+    eyeInner: S.eyeInner,
+    fgColor:  S.fgColor,
+    bgColor:  S.bgColor,
+    gradient: S.gradient,
+    gc1:      S.gc1,
+    gc2:      S.gc2,
+    frame:    S.frame,
+    logoKey:  S.logoKey,
+  };
+}
+
+// ── Render Projects Page ──────────────────────────────────
+function renderProjects(query = '') {
+  const list = document.getElementById('project-list');
+  if (!list) return;
+  let projects = loadProjects();
+  const q = query.toLowerCase().trim();
+
+  if (q) {
     projects = projects.filter(p =>
-      (p.name || '').toLowerCase().includes(q) ||
-      (p.data || '').toLowerCase().includes(q) ||
-      (p.tags || []).some(t => t.toLowerCase().includes(q))
+      (p.name  && p.name.toLowerCase().includes(q)) ||
+      (p.data  && p.data.toLowerCase().includes(q)) ||
+      (p.tags  && p.tags.some(t => t.toLowerCase().includes(q))) ||
+      (p.type  && p.type.toLowerCase().includes(q))
     );
   }
 
   if (!projects.length) {
-    container.innerHTML = `
+    list.innerHTML = `
       <div class="empty-state">
         <i class="fa-solid fa-folder-open"></i>
-        <p>${search ? 'No projects match your search' : 'No QR codes saved yet.<br>Generate a QR code to get started!'}</p>
+        <p>${q ? 'No results found.' : 'No saved QR codes yet.<br>Generate a QR and it will appear here.'}</p>
       </div>`;
     return;
   }
 
-  container.innerHTML = projects.map(p => `
-    <div class="project-card${currentProjectId === p.id ? ' active' : ''}" data-id="${p.id}">
-      <div class="project-thumb-wrap">
-        ${p.thumb
-          ? `<img src="${p.thumb}" alt="QR" class="project-thumb">`
-          : `<div class="project-thumb-empty"><i class="fa-solid fa-qrcode"></i></div>`}
+  list.innerHTML = projects.map(p => `
+    <div class="project-card" id="pc-${p.id}">
+      <div class="project-thumb">
+        <canvas id="thumb-${p.id}" width="80" height="80"></canvas>
       </div>
       <div class="project-info">
-        <div class="project-name" onclick="editProjectName('${p.id}', this)">
-          ${escHtml(p.name || p.data?.substring(0, 30) || 'Untitled')}
-        </div>
-        <div class="project-meta">
+        <div class="project-name-row">
+          <span class="project-name ${!p.name ? 'unnamed' : ''}"
+                onclick="editProjectName('${p.id}')"
+                title="Click to rename">
+            ${p.name || '<em>Unnamed</em>'}
+          </span>
           <span class="project-type-badge">${p.type || 'url'}</span>
-          <span class="project-date">${formatDate(p.updatedAt)}</span>
         </div>
+        <div class="project-data" title="${escHtml(p.data)}">${escHtml(truncate(p.data, 48))}</div>
         <div class="project-tags">
-          ${(p.tags || []).map(t => `<span class="project-tag" onclick="removeTag('${p.id}','${escHtml(t)}')">${escHtml(t)} ×</span>`).join('')}
-          <button class="tag-add-btn" onclick="addTag('${p.id}')"><i class="fa-solid fa-plus"></i> tag</button>
+          ${(p.tags || []).map(t => `<span class="tag-chip" onclick="removeTag('${p.id}','${escHtml(t)}')">${escHtml(t)} ×</span>`).join('')}
+          <button class="tag-add-btn" onclick="addTag('${p.id}')">+ tag</button>
         </div>
+        <div class="project-date">${formatDate(p.date)}</div>
       </div>
       <div class="project-actions">
-        <button class="btn btn-primary btn-xs" onclick="loadProject('${p.id}')" title="Open"><i class="fa-solid fa-folder-open"></i></button>
-        <button class="btn btn-outline btn-xs" onclick="downloadProjectQR('${p.id}')" title="Download"><i class="fa-solid fa-download"></i></button>
-        <button class="btn btn-danger btn-xs" onclick="deleteProject('${p.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
+        <button class="icon-btn" title="Load in Generator" onclick="loadProjectInGen('${p.id}')">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+        </button>
+        <button class="icon-btn" title="Download PNG" onclick="downloadProjectPNG('${p.id}')">
+          <i class="fa-solid fa-download"></i>
+        </button>
+        <button class="icon-btn danger" title="Delete" onclick="deleteProject('${p.id}')">
+          <i class="fa-solid fa-trash"></i>
+        </button>
       </div>
     </div>
   `).join('');
+
+  // Generate thumbnails asynchronously
+  projects.forEach(p => renderProjectThumb(p));
 }
 
-function formatDate(ts) {
-  if (!ts) return '';
-  const d = new Date(ts);
-  return d.toLocaleDateString('en-BD', { day:'numeric', month:'short', year:'numeric' });
+// ── Render a small thumbnail QR for a project ────────────
+function renderProjectThumb(p) {
+  const canvas = document.getElementById('thumb-' + p.id);
+  if (!canvas) return;
+  try {
+    const div = document.createElement('div');
+    div.style.cssText = 'position:absolute;visibility:hidden;left:-9999px;';
+    document.body.appendChild(div);
+    new QRCode(div, { text: p.data || ' ', width: 80, height: 80, correctLevel: QRCode.CorrectLevel.M });
+    const img = div.querySelector('img') || div.querySelector('canvas');
+    if (img) {
+      const ctx = canvas.getContext('2d');
+      if (img.tagName === 'CANVAS') {
+        ctx.drawImage(img, 0, 0, 80, 80);
+      } else {
+        const i = new Image();
+        i.onload = () => ctx.drawImage(i, 0, 0, 80, 80);
+        i.src = img.src;
+      }
+    }
+    document.body.removeChild(div);
+  } catch (e) {}
 }
 
-// ── Load a project ────────────────────────────────────────
-function loadProject(id) {
-  const projects = getAllProjects();
-  const p = projects.find(p => p.id === id);
+// ── Edit project name ─────────────────────────────────────
+function editProjectName(id) {
+  const projects = loadProjects();
+  const p = projects.find(x => x.id === id);
   if (!p) return;
-  currentProjectId = id;
-  _lastAutoData    = p.data;
-  Object.assign(S, p.settings);
-  switchQRType(p.type || 'url', false);
-  syncAllUI();
-  renderQR();
-  switchView('gen');
-  showToast('Project loaded: ' + (p.name || 'Untitled'), 'success');
+  const name = prompt('Project name:', p.name || '');
+  if (name === null) return;
+  p.name = name.trim();
+  saveProjectsData(projects);
+  renderProjects(document.getElementById('project-search')?.value || '');
+}
+
+// ── Add tag ───────────────────────────────────────────────
+function addTag(id) {
+  const projects = loadProjects();
+  const p = projects.find(x => x.id === id);
+  if (!p) return;
+  const tag = prompt('Add tag:');
+  if (!tag || !tag.trim()) return;
+  p.tags = p.tags || [];
+  if (!p.tags.includes(tag.trim())) p.tags.push(tag.trim());
+  saveProjectsData(projects);
+  renderProjects(document.getElementById('project-search')?.value || '');
+}
+
+// ── Remove tag ────────────────────────────────────────────
+function removeTag(id, tag) {
+  const projects = loadProjects();
+  const p = projects.find(x => x.id === id);
+  if (!p) return;
+  p.tags = (p.tags || []).filter(t => t !== tag);
+  saveProjectsData(projects);
+  renderProjects(document.getElementById('project-search')?.value || '');
+}
+
+// ── Load project into generator ───────────────────────────
+function loadProjectInGen(id) {
+  const projects = loadProjects();
+  const p = projects.find(x => x.id === id);
+  if (!p) return;
+  // Switch to generator
+  switchMode('gen');
+  // Set type
+  if (p.type) {
+    S.activeType = p.type;
+    renderTypeTab(p.type);
+  }
+  // Restore design if available
+  if (p.design) {
+    Object.assign(S, p.design);
+  }
+  // Set input data
+  setTimeout(() => {
+    setInputData(p.type, p.data);
+    schedRender();
+  }, 100);
+  showToast('Loaded in Generator', 'success');
+}
+
+// ── Set raw input data back into form ────────────────────
+function setInputData(type, data) {
+  // Simple approach: set URL input if URL type
+  if (type === 'url') {
+    const el = document.getElementById('f-url');
+    if (el) { el.value = data; return; }
+  }
+  if (type === 'text') {
+    const el = document.getElementById('f-text');
+    if (el) { el.value = data; return; }
+  }
+  // For other types just set URL as fallback
+  const el = document.getElementById('f-url');
+  if (el) el.value = data;
+}
+
+// ── Download project as PNG ───────────────────────────────
+function downloadProjectPNG(id) {
+  const projects = loadProjects();
+  const p = projects.find(x => x.id === id);
+  if (!p) return;
+  const canvas = document.getElementById('thumb-' + id);
+  if (!canvas) return;
+  const a = document.createElement('a');
+  a.download = (p.name || 'qr-code') + '.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+  showToast('Downloaded!', 'success');
 }
 
 // ── Delete project ────────────────────────────────────────
 function deleteProject(id) {
-  if (!confirm('Delete this QR code project?')) return;
-  const projects = getAllProjects().filter(p => p.id !== id);
-  saveAllProjects(projects);
-  if (currentProjectId === id) { currentProjectId = null; _lastAutoData = null; }
-  renderProjectsView(document.getElementById('projects-search')?.value || '');
-  updateProjectsBadge();
-  showToast('Project deleted', 'info');
-}
-
-// ── Edit project name ─────────────────────────────────────
-function editProjectName(id, el) {
-  const current = el.textContent.trim();
-  const input = document.createElement('input');
-  input.type = 'text'; input.value = current === 'Untitled' ? '' : current;
-  input.className = 'inline-edit-input';
-  el.replaceWith(input); input.focus();
-  const save = () => {
-    const name = input.value.trim();
-    const projects = getAllProjects();
-    const idx = projects.findIndex(p => p.id === id);
-    if (idx !== -1) { projects[idx].name = name; saveAllProjects(projects); }
-    const span = document.createElement('div');
-    span.className = 'project-name'; span.onclick = () => editProjectName(id, span);
-    span.textContent = name || 'Untitled';
-    input.replaceWith(span);
-  };
-  input.addEventListener('blur', save);
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') { input.value = current; input.blur(); } });
-}
-
-// ── Tags ──────────────────────────────────────────────────
-function addTag(id) {
-  const tag = prompt('Add tag:');
-  if (!tag || !tag.trim()) return;
-  const projects = getAllProjects();
-  const idx = projects.findIndex(p => p.id === id);
-  if (idx === -1) return;
-  if (!projects[idx].tags) projects[idx].tags = [];
-  if (!projects[idx].tags.includes(tag.trim())) projects[idx].tags.push(tag.trim());
-  saveAllProjects(projects);
-  renderProjectsView(document.getElementById('projects-search')?.value || '');
-}
-
-function removeTag(id, tag) {
-  const projects = getAllProjects();
-  const idx = projects.findIndex(p => p.id === id);
-  if (idx === -1) return;
-  projects[idx].tags = (projects[idx].tags || []).filter(t => t !== tag);
-  saveAllProjects(projects);
-  renderProjectsView(document.getElementById('projects-search')?.value || '');
+  if (SETTINGS.confirmDelete && !confirm('Delete this QR code?')) return;
+  const projects = loadProjects().filter(p => p.id !== id);
+  saveProjectsData(projects);
+  const card = document.getElementById('pc-' + id);
+  if (card) card.remove();
+  renderProjects(document.getElementById('project-search')?.value || '');
+  showToast('Deleted', 'info');
 }
 
 // ── Clear all projects ────────────────────────────────────
 function clearAllProjects() {
-  if (!confirm('Delete ALL QR code projects? This cannot be undone.')) return;
-  saveAllProjects([]);
-  currentProjectId = null; _lastAutoData = null;
-  renderProjectsView();
-  updateProjectsBadge();
+  if (!confirm('Delete ALL saved QR codes? This cannot be undone.')) return;
+  saveProjectsData([]);
+  renderProjects();
   showToast('All projects cleared', 'info');
 }
 
-// ── Download project QR ───────────────────────────────────
-function downloadProjectQR(id) {
-  const projects = getAllProjects();
-  const p = projects.find(p => p.id === id);
-  if (!p?.thumb) { showToast('No preview available', 'warning'); return; }
-  const a = document.createElement('a');
-  a.href = p.thumb; a.download = (p.name || 'qr-code') + '.png'; a.click();
+// ── Helpers ───────────────────────────────────────────────
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
-// ── Badge count ───────────────────────────────────────────
-function updateProjectsBadge() {
-  const count = getAllProjects().length;
-  const badge = document.getElementById('projects-badge');
-  if (badge) { badge.textContent = count; badge.style.display = count > 0 ? '' : 'none'; }
+function truncate(s, n) {
+  s = String(s || '');
+  return s.length > n ? s.slice(0, n) + '…' : s;
+}
+function formatDate(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+  } catch { return iso; }
 }
