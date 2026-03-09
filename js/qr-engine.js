@@ -1,37 +1,36 @@
 // =========================================================
-// QR-ENGINE.JS — Canvas drawing, patterns, eyes, frame
+// js/qr-engine.js — Canvas QR rendering engine V2.0
+// Handles all pattern types, eye frame/inner shapes, frames
 // =========================================================
 
 let renderTimer = null;
 
-// ── Schedule / Debounce render ──────────────────────────
+// ── Debounce render ─────────────────────────────────────
 function schedRender() {
   clearTimeout(renderTimer);
   renderTimer = setTimeout(() => {
     pushUndo();
     renderQR();
-  }, 280);
+  }, 350);
 }
 
 // ── Undo / Redo ─────────────────────────────────────────
 function pushUndo() {
   undoStack.push(JSON.stringify(S));
-  if (undoStack.length > 25) undoStack.shift();
+  if (undoStack.length > 30) undoStack.shift();
   redoStack.length = 0;
 }
 function undo() {
   if (!undoStack.length) return;
   redoStack.push(JSON.stringify(S));
   Object.assign(S, JSON.parse(undoStack.pop()));
-  syncAllUI();
-  renderQR();
+  syncAllUI(); renderQR();
 }
 function redo() {
   if (!redoStack.length) return;
   undoStack.push(JSON.stringify(S));
   Object.assign(S, JSON.parse(redoStack.pop()));
-  syncAllUI();
-  renderQR();
+  syncAllUI(); renderQR();
 }
 
 // ── Get QR module matrix ────────────────────────────────
@@ -41,26 +40,122 @@ function getMatrix(data, ec) {
     div.style.cssText = 'position:absolute;visibility:hidden;left:-9999px;top:-9999px;';
     document.body.appendChild(div);
     const qr = new QRCode(div, {
-      text: data || ' ',
-      width: 100,
-      height: 100,
+      text: data || ' ', width: 100, height: 100,
       correctLevel: QRCode.CorrectLevel[ec] || QRCode.CorrectLevel.H,
     });
     const modules = qr._oQRCode ? qr._oQRCode.modules : null;
     document.body.removeChild(div);
     return modules;
-  } catch (e) {
-    console.warn('getMatrix error:', e);
-    return null;
-  }
+  } catch (e) { return null; }
 }
 
-// ── Check if a cell is part of a finder (eye) pattern ───
+// ── Finder pattern area check ───────────────────────────
 function isInFinder(row, col, count) {
-  if (row <= 6 && col <= 6)            return true; // top-left
-  if (row <= 6 && col >= count - 7)    return true; // top-right
-  if (row >= count - 7 && col <= 6)    return true; // bottom-left
+  if (row <= 6 && col <= 6)         return true; // top-left
+  if (row <= 6 && col >= count - 7) return true; // top-right
+  if (row >= count - 7 && col <= 6) return true; // bottom-left
   return false;
+}
+
+// ── Draw module shape (pattern) ─────────────────────────
+function drawModule(ctx, x, y, size, patId) {
+  const r = size / 2;
+  const cx = x + r, cy = y + r;
+
+  switch (patId) {
+    case 'pat-dots':
+      ctx.beginPath(); ctx.arc(cx, cy, r * 0.9, 0, Math.PI * 2); ctx.fill(); break;
+
+    case 'pat-rounded':
+      ctx.beginPath(); rrect(ctx, x, y, size, size, size * 0.25); ctx.fill(); break;
+
+    case 'pat-extra-rounded':
+      ctx.beginPath(); rrect(ctx, x, y, size, size, r); ctx.fill(); break;
+
+    case 'pat-classy':
+      ctx.beginPath();
+      ctx.moveTo(x + size * 0.4, y);
+      ctx.lineTo(x + size, y);
+      ctx.lineTo(x + size, y + size);
+      ctx.lineTo(x, y + size);
+      ctx.lineTo(x, y + size * 0.4);
+      ctx.arcTo(x, y, x + size * 0.4, y, size * 0.4);
+      ctx.closePath(); ctx.fill(); break;
+
+    case 'pat-diamond':
+      ctx.beginPath();
+      ctx.moveTo(cx, y); ctx.lineTo(x + size, cy);
+      ctx.lineTo(cx, y + size); ctx.lineTo(x, cy);
+      ctx.closePath(); ctx.fill(); break;
+
+    case 'pat-star': {
+      ctx.beginPath();
+      const spikes = 5, ro = r * 0.9, ri = r * 0.4;
+      let rot = (-Math.PI / 2);
+      for (let i = 0; i < spikes * 2; i++) {
+        const rr = i % 2 === 0 ? ro : ri;
+        ctx.lineTo(cx + Math.cos(rot) * rr, cy + Math.sin(rot) * rr);
+        rot += Math.PI / spikes;
+      }
+      ctx.closePath(); ctx.fill(); break;
+    }
+
+    case 'pat-heart': {
+      ctx.beginPath();
+      ctx.moveTo(cx, y + size * 0.3);
+      ctx.bezierCurveTo(cx, y, x, y, x, y + size * 0.3);
+      ctx.bezierCurveTo(x, y + size * 0.65, cx - size * 0.1, y + size * 0.75, cx, y + size);
+      ctx.bezierCurveTo(cx + size * 0.1, y + size * 0.75, x + size, y + size * 0.65, x + size, y + size * 0.3);
+      ctx.bezierCurveTo(x + size, y, cx, y, cx, y + size * 0.3);
+      ctx.fill(); break;
+    }
+
+    case 'pat-plus':
+      ctx.fillRect(x + size * 0.3, y, size * 0.4, size);
+      ctx.fillRect(x, y + size * 0.3, size, size * 0.4); break;
+
+    case 'pat-cross':
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-size * 0.15, -r * 0.95, size * 0.3, size * 1.9);
+      ctx.fillRect(-r * 0.95, -size * 0.15, size * 1.9, size * 0.3);
+      ctx.restore(); break;
+
+    case 'pat-h-lines':
+      ctx.fillRect(x, y + size * 0.3, size, size * 0.4); break;
+
+    case 'pat-v-lines':
+      ctx.fillRect(x + size * 0.3, y, size * 0.4, size); break;
+
+    case 'pat-tiny-dots':
+      ctx.beginPath(); ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2); ctx.fill(); break;
+
+    case 'pat-bars':
+      ctx.beginPath(); rrect(ctx, x + size * 0.15, y, size * 0.7, size, size * 0.35); ctx.fill(); break;
+
+    case 'pat-wave': {
+      ctx.beginPath();
+      ctx.moveTo(x, y + size * 0.35);
+      ctx.bezierCurveTo(x + size * 0.25, y, x + size * 0.75, y, x + size, y + size * 0.35);
+      ctx.bezierCurveTo(x + size * 0.75, y + size, x + size * 0.25, y + size, x, y + size * 0.65);
+      ctx.closePath(); ctx.fill(); break;
+    }
+
+    case 'pat-leaf':
+      ctx.beginPath();
+      ctx.moveTo(x, cy);
+      ctx.bezierCurveTo(x, y, x + size, y, x + size, cy);
+      ctx.bezierCurveTo(x + size, y + size, x, y + size, x, cy);
+      ctx.fill(); break;
+
+    case 'pat-ring':
+      ctx.beginPath(); ctx.arc(cx, cy, r * 0.88, 0, Math.PI * 2); ctx.fill();
+      ctx.save(); ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath(); ctx.arc(cx, cy, r * 0.45, 0, Math.PI * 2); ctx.fill();
+      ctx.restore(); break;
+
+    default: // pat-square
+      ctx.fillRect(x, y, size, size); break;
+  }
 }
 
 // ── Rounded rect helper ──────────────────────────────────
@@ -68,520 +163,536 @@ function rrect(ctx, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
   ctx.moveTo(x + r, y);
   ctx.lineTo(x + w - r, y);
-  ctx.arcTo(x + w, y,   x + w, y + r,   r);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
   ctx.lineTo(x + w, y + h - r);
   ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
   ctx.lineTo(x + r, y + h);
-  ctx.arcTo(x,     y + h, x, y + h - r, r);
-  ctx.lineTo(x,    y + r);
-  ctx.arcTo(x,     y,     x + r, y,      r);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
   ctx.closePath();
 }
 
-// ── Draw a 5-point star ──────────────────────────────────
-function drawStar(ctx, cx, cy, spikes, ro, ri) {
-  let rot = (Math.PI / 2) * 3, step = Math.PI / spikes;
-  ctx.moveTo(cx, cy - ro);
-  for (let i = 0; i < spikes; i++) {
-    ctx.lineTo(cx + Math.cos(rot) * ro, cy + Math.sin(rot) * ro); rot += step;
-    ctx.lineTo(cx + Math.cos(rot) * ri, cy + Math.sin(rot) * ri); rot += step;
-  }
-  ctx.closePath();
-}
-
-// ── Draw a diamond ───────────────────────────────────────
-function drawDiamond(ctx, cx, cy, r) {
-  ctx.moveTo(cx, cy - r);
-  ctx.lineTo(cx + r, cy);
-  ctx.lineTo(cx, cy + r);
-  ctx.lineTo(cx - r, cy);
-  ctx.closePath();
-}
-
-// ── Draw a heart ─────────────────────────────────────────
-function drawHeart(ctx, cx, cy, r) {
-  ctx.moveTo(cx, cy + r * 0.6);
-  ctx.bezierCurveTo(cx - r * 1.5, cy - r * 0.8, cx - r * 1.8, cy - r * 1.5, cx, cy - r * 0.7);
-  ctx.bezierCurveTo(cx + r * 1.8, cy - r * 1.5, cx + r * 1.5, cy - r * 0.8, cx, cy + r * 0.6);
-  ctx.closePath();
-}
-
-// ── Draw one QR module cell with a pattern shape ─────────
-function drawModule(ctx, x, y, cs, pattern, color) {
-  const gap = cs * 0.12;
-  const mx = x + gap, my = y + gap, mw = cs - gap * 2, mh = cs - gap * 2;
-  const cx2 = x + cs / 2, cy2 = y + cs / 2, r = mw / 2;
-
-  ctx.beginPath();
-  switch (pattern) {
-    case 'square':
-      ctx.rect(mx, my, mw, mh);
-      break;
-    case 'dots':
-      ctx.arc(cx2, cy2, r, 0, Math.PI * 2);
-      break;
-    case 'rounded':
-      rrect(ctx, mx, my, mw, mh, r * 0.4);
-      break;
-    case 'extra-rounded':
-      rrect(ctx, mx, my, mw, mh, r * 0.72);
-      break;
-    case 'classy':
-      ctx.moveTo(mx + r * 0.5, my);
-      ctx.lineTo(mx + mw, my);
-      ctx.lineTo(mx + mw, my + mh);
-      ctx.lineTo(mx, my + mh);
-      ctx.arcTo(mx, my, mx + r * 0.5, my, r * 0.5);
-      ctx.closePath();
-      break;
-    case 'diamond':
-      drawDiamond(ctx, cx2, cy2, r);
-      break;
-    case 'star':
-      drawStar(ctx, cx2, cy2, 5, r, r * 0.46);
-      break;
-    case 'heart':
-      drawHeart(ctx, cx2, cy2, r * 0.65);
-      break;
-    case 'plus':
-      ctx.rect(mx + mw * 0.3, my, mw * 0.4, mh);
-      ctx.rect(mx, my + mh * 0.3, mw, mh * 0.4);
-      break;
-    case 'cross':
-      ctx.save();
-      ctx.translate(cx2, cy2);
-      ctx.rotate(Math.PI / 4);
-      ctx.rect(-mw * 0.15, -mh / 2, mw * 0.3, mh);
-      ctx.rect(-mw / 2,   -mh * 0.15, mw, mh * 0.3);
-      ctx.restore();
-      break;
-    case 'h-lines':
-      for (let i = 0; i < 3; i++) {
-        const yy = my + (mh / 4) * (i + 0.5);
-        ctx.rect(mx, yy, mw, mh * 0.15);
-      }
-      break;
-    case 'v-lines':
-      for (let i = 0; i < 3; i++) {
-        const xx = mx + (mw / 4) * (i + 0.5);
-        ctx.rect(xx, my, mw * 0.15, mh);
-      }
-      break;
-    default:
-      ctx.rect(mx, my, mw, mh);
-  }
-
+// ── Draw eye frame (outer 7x7 ring) ─────────────────────
+function drawEyeFrame(ctx, ex, ey, mod, color, efId) {
+  const s = mod * 7;
+  const cx = ex + s / 2, cy = ey + s / 2;
   ctx.fillStyle = color;
-  ctx.fill();
-}
 
-// ── Draw one corner eye ──────────────────────────────────
-function drawEye(ctx, ex, ey, cs, frameShape, innerShape, frameColor, innerColor, bgColor) {
-  const s7 = cs * 7, s5 = cs * 5, s3 = cs * 3;
-  const off1 = cs, off2 = cs * 2;
-  const mid = ex + s7 / 2, mid2 = ey + s7 / 2;
-
-  // ─ Draw outer frame (7×7 filled) ─
-  ctx.fillStyle = frameColor;
-  ctx.beginPath();
-  switch (frameShape) {
-    case 'rounded':
-      rrect(ctx, ex, ey, s7, s7, cs * 0.9);
-      break;
-    case 'extra-rounded':
-      rrect(ctx, ex, ey, s7, s7, cs * 1.5);
-      break;
-    case 'circle':
-      ctx.arc(mid, mid2, s7 / 2, 0, Math.PI * 2);
-      break;
-    case 'diamond':
-      drawDiamond(ctx, mid, mid2, s7 / 2);
-      break;
-    case 'dots':
-      ctx.setLineDash([cs * 0.6, cs * 0.4]);
-      ctx.strokeStyle = frameColor;
-      ctx.lineWidth = cs * 0.9;
-      ctx.strokeRect(ex + cs * 0.45, ey + cs * 0.45, s7 - cs * 0.9, s7 - cs * 0.9);
-      ctx.setLineDash([]);
-      // fill inner area manually later
-      ctx.fillRect(ex + off1, ey + off1, s5, s5);
-      break;
-    default: // square
-      ctx.rect(ex, ey, s7, s7);
-  }
-  ctx.fill();
-
-  // ─ Clear 5×5 inner gap (bg color) ─
-  ctx.fillStyle = bgColor;
-  ctx.beginPath();
-  switch (frameShape) {
-    case 'rounded':
-      rrect(ctx, ex + off1, ey + off1, s5, s5, cs * 0.6);
-      break;
-    case 'extra-rounded':
-      rrect(ctx, ex + off1, ey + off1, s5, s5, cs * 1.0);
-      break;
-    case 'circle':
-      ctx.arc(mid, mid2, s5 / 2, 0, Math.PI * 2);
-      break;
-    case 'diamond':
-      drawDiamond(ctx, mid, mid2, s5 / 2);
-      break;
-    default:
-      ctx.rect(ex + off1, ey + off1, s5, s5);
-  }
-  ctx.fill();
-
-  // ─ Draw 3×3 inner center ─
-  ctx.fillStyle = innerColor;
-  const icx = mid, icy = mid2, ir = s3 / 2;
-  ctx.beginPath();
-  switch (innerShape) {
-    case 'circle':
-      ctx.arc(icx, icy, ir, 0, Math.PI * 2);
-      break;
-    case 'rounded':
-      rrect(ctx, ex + off2, ey + off2, s3, s3, cs * 0.4);
-      break;
-    case 'extra-rounded':
-      rrect(ctx, ex + off2, ey + off2, s3, s3, cs * 0.85);
-      break;
-    case 'diamond':
-      drawDiamond(ctx, icx, icy, ir);
-      break;
-    case 'star':
-      drawStar(ctx, icx, icy, 5, ir, ir * 0.45);
-      break;
-    default: // square
-      ctx.rect(ex + off2, ey + off2, s3, s3);
-  }
-  ctx.fill();
-}
-
-// ── Draw logo onto canvas ────────────────────────────────
-async function drawLogoOnCanvas(ctx, cW, qrTop, qrH) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const lSize  = qrH * (S.logoSize / 100);
-      const lx     = (cW - lSize) / 2;
-      const ly     = qrTop + (qrH - lSize) / 2;
-      const pad    = S.logoPad;
-      const br     = lSize * (S.logoBR / 100);
-
-      if (S.logoRemoveBG) {
-        ctx.fillStyle = S.logoPadColor;
-        ctx.beginPath();
-        rrect(ctx, lx - pad, ly - pad, lSize + pad * 2, lSize + pad * 2, br + pad);
-        ctx.fill();
+  switch (efId) {
+    case 'ef-rounded': {
+      ctx.beginPath(); rrect(ctx, ex, ey, s, s, mod * 1.2); ctx.fill();
+      ctx.save(); ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath(); rrect(ctx, ex + mod, ey + mod, s - mod * 2, s - mod * 2, mod * 0.8); ctx.fill();
+      ctx.restore(); break;
+    }
+    case 'ef-extra-rounded': {
+      ctx.beginPath(); rrect(ctx, ex, ey, s, s, mod * 2.5); ctx.fill();
+      ctx.save(); ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath(); rrect(ctx, ex + mod, ey + mod, s - mod * 2, s - mod * 2, mod * 1.8); ctx.fill();
+      ctx.restore(); break;
+    }
+    case 'ef-circle': {
+      ctx.beginPath(); ctx.arc(cx, cy, s / 2, 0, Math.PI * 2); ctx.fill();
+      ctx.save(); ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath(); ctx.arc(cx, cy, s / 2 - mod, 0, Math.PI * 2); ctx.fill();
+      ctx.restore(); break;
+    }
+    case 'ef-diamond': {
+      ctx.beginPath();
+      ctx.moveTo(cx, ey); ctx.lineTo(ex + s, cy); ctx.lineTo(cx, ey + s); ctx.lineTo(ex, cy);
+      ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      const m = mod * 1.2;
+      ctx.moveTo(cx, ey + m); ctx.lineTo(ex + s - m, cy); ctx.lineTo(cx, ey + s - m); ctx.lineTo(ex + m, cy);
+      ctx.closePath(); ctx.fill();
+      ctx.restore(); break;
+    }
+    case 'ef-dots': {
+      const count = 12;
+      const rad = s / 2, dotR = mod * 0.5;
+      for (let i = 0; i < count; i++) {
+        const a = (Math.PI * 2 * i) / count - Math.PI / 2;
+        ctx.beginPath(); ctx.arc(cx + Math.cos(a) * (rad - dotR), cy + Math.sin(a) * (rad - dotR), dotR, 0, Math.PI * 2); ctx.fill();
       }
-
-      ctx.save();
+      break;
+    }
+    case 'ef-thick': {
+      ctx.beginPath(); rrect(ctx, ex - mod * 0.5, ey - mod * 0.5, s + mod, s + mod, 0); ctx.fill();
+      ctx.save(); ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath(); rrect(ctx, ex + mod * 1.5, ey + mod * 1.5, s - mod * 3, s - mod * 3, 0); ctx.fill();
+      ctx.restore(); break;
+    }
+    case 'ef-double': {
+      ctx.strokeStyle = color; ctx.lineWidth = mod * 0.5;
+      ctx.strokeRect(ex + mod * 0.25, ey + mod * 0.25, s - mod * 0.5, s - mod * 0.5);
+      ctx.strokeRect(ex + mod * 1.25, ey + mod * 1.25, s - mod * 2.5, s - mod * 2.5);
+      // Draw the border
+      ctx.fillRect(ex, ey, s, mod); ctx.fillRect(ex, ey + s - mod, s, mod);
+      ctx.fillRect(ex, ey + mod, mod, s - mod * 2); ctx.fillRect(ex + s - mod, ey + mod, mod, s - mod * 2);
+      break;
+    }
+    case 'ef-bracket': {
+      const bk = mod * 2;
+      ctx.strokeStyle = color; ctx.lineWidth = mod; ctx.lineCap = 'square';
       ctx.beginPath();
-      rrect(ctx, lx, ly, lSize, lSize, br);
-      ctx.clip();
-      ctx.drawImage(img, lx, ly, lSize, lSize);
-      ctx.restore();
-      resolve();
-    };
-    img.onerror = () => resolve();
-    img.src = S.logoSrc;
-  });
-}
-
-// ── Draw frame around / below QR ─────────────────────────
-function drawFrame(ctx, cW, cH, fTopH, fBotH, cs) {
-  const fc = S.frameColor;
-
-  if (S.frame === 'bottom-bar' || S.frame === 'top-bar') {
-    const isTop = S.frame === 'top-bar';
-    const barY  = isTop ? 0 : cH - fBotH;
-    const barH  = isTop ? fTopH : fBotH;
-    ctx.fillStyle = fc;
-    ctx.beginPath();
-    rrect(ctx, 0, barY, cW, barH, 10);
-    ctx.fill();
-    const fontSize = Math.max(12, cs * 1.2 * (S.frameTSize / 100));
-    ctx.font = `bold ${fontSize}px ${S.frameFont}, sans-serif`;
-    ctx.fillStyle = S.frameLabelColor;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(S.frameLabel, cW / 2, barY + barH / 2);
-
-  } else if (S.frame === 'polaroid') {
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, cW, fTopH);
-    ctx.fillRect(0, cH - fBotH, cW, fBotH);
-    ctx.strokeStyle = '#dddddd';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(1, 1, cW - 2, cH - 2);
-    const fontSize = Math.max(12, cs * 1.3 * (S.frameTSize / 100));
-    ctx.font = `bold ${fontSize}px ${S.frameFont}, sans-serif`;
-    ctx.fillStyle = '#444444';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(S.frameLabel, cW / 2, cH - fBotH / 2);
-
-  } else if (S.frame === 'square-thin') {
-    ctx.strokeStyle = fc; ctx.lineWidth = 3;
-    ctx.strokeRect(4, 4, cW - 8, cH - 8);
-
-  } else if (S.frame === 'square-thick') {
-    ctx.strokeStyle = fc; ctx.lineWidth = 9;
-    ctx.strokeRect(6, 6, cW - 12, cH - 12);
-
-  } else if (S.frame === 'rounded-border') {
-    ctx.strokeStyle = fc; ctx.lineWidth = 5;
-    ctx.beginPath();
-    rrect(ctx, 5, 5, cW - 10, cH - 10, cs);
-    ctx.stroke();
-
-  } else if (S.frame === 'circle-border') {
-    ctx.strokeStyle = fc; ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.arc(cW / 2, cH / 2, Math.min(cW, cH) / 2 - 8, 0, Math.PI * 2);
-    ctx.stroke();
-
-  } else if (S.frame === 'dashed-border') {
-    ctx.strokeStyle = fc; ctx.lineWidth = 3;
-    ctx.setLineDash([cs * 0.9, cs * 0.5]);
-    ctx.strokeRect(6, 6, cW - 12, cH - 12);
-    ctx.setLineDash([]);
-
-  } else if (S.frame === 'bracket') {
-    ctx.strokeStyle = fc; ctx.lineWidth = 4;
-    const s = cs * 1.8;
-    [[0, 0, 1, 1], [cW, 0, -1, 1], [0, cH, 1, -1], [cW, cH, -1, -1]].forEach(([bx, by, dx, dy]) => {
+      ctx.moveTo(ex + bk, ey); ctx.lineTo(ex, ey); ctx.lineTo(ex, ey + bk);
+      ctx.moveTo(ex + s - bk, ey); ctx.lineTo(ex + s, ey); ctx.lineTo(ex + s, ey + bk);
+      ctx.moveTo(ex, ey + s - bk); ctx.lineTo(ex, ey + s); ctx.lineTo(ex + bk, ey + s);
+      ctx.moveTo(ex + s, ey + s - bk); ctx.lineTo(ex + s, ey + s); ctx.lineTo(ex + s - bk, ey + s);
+      ctx.stroke(); break;
+    }
+    case 'ef-shield': {
       ctx.beginPath();
-      ctx.moveTo(bx + dx * s, by);
-      ctx.lineTo(bx, by);
-      ctx.lineTo(bx, by + dy * s);
-      ctx.stroke();
-    });
+      ctx.moveTo(cx, ey); ctx.lineTo(ex + s, ey + mod * 1.5);
+      ctx.lineTo(ex + s, ey + s * 0.6); ctx.bezierCurveTo(ex + s, ey + s * 0.9, cx, ey + s, cx, ey + s);
+      ctx.bezierCurveTo(ex, ey + s, ex, ey + s * 0.9, ex, ey + s * 0.6); ctx.lineTo(ex, ey + mod * 1.5);
+      ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.globalCompositeOperation = 'destination-out';
+      const i2 = mod;
+      ctx.beginPath();
+      ctx.moveTo(cx, ey + i2 * 1.5); ctx.lineTo(ex + s - i2, ey + i2 * 2.5);
+      ctx.lineTo(ex + s - i2, ey + s * 0.55); ctx.bezierCurveTo(ex + s - i2, ey + s * 0.82, cx, ey + s - i2, cx, ey + s - i2);
+      ctx.bezierCurveTo(ex + i2, ey + s * 0.82, ex + i2, ey + s * 0.55, ex + i2, ey + s * 0.55); ctx.lineTo(ex + i2, ey + i2 * 2.5);
+      ctx.closePath(); ctx.fill();
+      ctx.restore(); break;
+    }
+    case 'ef-hexagon': {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i - Math.PI / 6;
+        const x2 = cx + (s / 2) * Math.cos(a), y2 = cy + (s / 2) * Math.sin(a);
+        i === 0 ? ctx.moveTo(x2, y2) : ctx.lineTo(x2, y2);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      const ri2 = s / 2 - mod;
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i - Math.PI / 6;
+        const x2 = cx + ri2 * Math.cos(a), y2 = cy + ri2 * Math.sin(a);
+        i === 0 ? ctx.moveTo(x2, y2) : ctx.lineTo(x2, y2);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.restore(); break;
+    }
+    case 'ef-cut-corner': {
+      const cc = mod * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(ex + cc, ey); ctx.lineTo(ex + s - cc, ey); ctx.lineTo(ex + s, ey + cc);
+      ctx.lineTo(ex + s, ey + s - cc); ctx.lineTo(ex + s - cc, ey + s); ctx.lineTo(ex + cc, ey + s);
+      ctx.lineTo(ex, ey + s - cc); ctx.lineTo(ex, ey + cc); ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.globalCompositeOperation = 'destination-out';
+      const cc2 = cc * 0.7, in3 = mod;
+      ctx.beginPath();
+      ctx.moveTo(ex + in3 + cc2, ey + in3); ctx.lineTo(ex + s - in3 - cc2, ey + in3);
+      ctx.lineTo(ex + s - in3, ey + in3 + cc2); ctx.lineTo(ex + s - in3, ey + s - in3 - cc2);
+      ctx.lineTo(ex + s - in3 - cc2, ey + s - in3); ctx.lineTo(ex + in3 + cc2, ey + s - in3);
+      ctx.lineTo(ex + in3, ey + s - in3 - cc2); ctx.lineTo(ex + in3, ey + in3 + cc2);
+      ctx.closePath(); ctx.fill();
+      ctx.restore(); break;
+    }
+    case 'ef-leaf': {
+      ctx.beginPath();
+      ctx.moveTo(cx, ey); ctx.bezierCurveTo(ex + s, ey, ex + s, ey + s, cx, ey + s);
+      ctx.bezierCurveTo(ex, ey + s, ex, ey, cx, ey); ctx.fill();
+      ctx.save(); ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.moveTo(cx, ey + mod); ctx.bezierCurveTo(ex + s - mod, ey + mod, ex + s - mod, ey + s - mod, cx, ey + s - mod);
+      ctx.bezierCurveTo(ex + mod, ey + s - mod, ex + mod, ey + mod, cx, ey + mod);
+      ctx.fill(); ctx.restore(); break;
+    }
+    case 'ef-wavy': {
+      ctx.strokeStyle = color; ctx.lineWidth = mod;
+      ctx.beginPath();
+      const wAmp = mod * 0.5, wStep = s / 6;
+      for (let side = 0; side < 4; side++) {
+        for (let i = 0; i <= 6; i++) {
+          const t2 = i / 6;
+          const wave = Math.sin(t2 * Math.PI * 2) * wAmp;
+          let x2, y2;
+          if (side === 0) { x2 = ex + t2 * s; y2 = ey + wave; }
+          else if (side === 1) { x2 = ex + s - wave; y2 = ey + t2 * s; }
+          else if (side === 2) { x2 = ex + s - t2 * s; y2 = ey + s - wave; }
+          else { x2 = ex + wave; y2 = ey + s - t2 * s; }
+          if (i === 0 && side === 0) ctx.moveTo(x2, y2); else ctx.lineTo(x2, y2);
+        }
+      }
+      ctx.closePath(); ctx.stroke(); break;
+    }
+    case 'ef-arrow': {
+      const ak = mod * 1.5;
+      ctx.strokeStyle = color; ctx.lineWidth = mod; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(ex + ak, ey); ctx.lineTo(ex, ey + ak);
+      ctx.moveTo(ex + s - ak, ey); ctx.lineTo(ex + s, ey + ak);
+      ctx.moveTo(ex, ey + s - ak); ctx.lineTo(ex + ak, ey + s);
+      ctx.moveTo(ex + s, ey + s - ak); ctx.lineTo(ex + s - ak, ey + s);
+      ctx.moveTo(ex, ey + ak); ctx.lineTo(ex, ey + s - ak);
+      ctx.moveTo(ex + s, ey + ak); ctx.lineTo(ex + s, ey + s - ak);
+      ctx.moveTo(ex + ak, ey); ctx.lineTo(ex + s - ak, ey);
+      ctx.moveTo(ex + ak, ey + s); ctx.lineTo(ex + s - ak, ey + s);
+      ctx.stroke(); break;
+    }
+    default: { // ef-square
+      ctx.fillRect(ex, ey, s, mod);
+      ctx.fillRect(ex, ey + s - mod, s, mod);
+      ctx.fillRect(ex, ey + mod, mod, s - mod * 2);
+      ctx.fillRect(ex + s - mod, ey + mod, mod, s - mod * 2);
+      break;
+    }
   }
 }
 
-// ── MAIN RENDER ──────────────────────────────────────────
-async function renderQR() {
-  const data    = buildQRData();
-  S.inputData   = data;
-  const canvas  = document.getElementById('qr-canvas');
-  const empty   = document.getElementById('qr-empty');
-  const actBtns = document.getElementById('action-btns');
-  const infoRow = document.getElementById('qr-info-row');
+// ── Draw eye inner (center 3x3 block) ───────────────────
+function drawEyeInner(ctx, ex, ey, mod, color, eiId) {
+  const s = mod * 3;
+  const cx = ex + s / 2, cy = ey + s / 2;
+  const r = s / 2;
+  ctx.fillStyle = color;
 
-  if (!data || !data.trim()) {
+  switch (eiId) {
+    case 'ei-circle':
+      ctx.beginPath(); ctx.arc(cx, cy, r * 0.9, 0, Math.PI * 2); ctx.fill(); break;
+    case 'ei-rounded':
+      ctx.beginPath(); rrect(ctx, ex, ey, s, s, s * 0.2); ctx.fill(); break;
+    case 'ei-extra-rounded':
+      ctx.beginPath(); rrect(ctx, ex, ey, s, s, r * 0.8); ctx.fill(); break;
+    case 'ei-diamond':
+      ctx.beginPath();
+      ctx.moveTo(cx, ey); ctx.lineTo(ex + s, cy); ctx.lineTo(cx, ey + s); ctx.lineTo(ex, cy);
+      ctx.closePath(); ctx.fill(); break;
+    case 'ei-star': {
+      ctx.beginPath();
+      const spikes = 5, ro = r * 0.9, ri = r * 0.38;
+      let rot = -Math.PI / 2;
+      for (let i = 0; i < spikes * 2; i++) {
+        const rr = i % 2 === 0 ? ro : ri;
+        ctx.lineTo(cx + Math.cos(rot) * rr, cy + Math.sin(rot) * rr);
+        rot += Math.PI / spikes;
+      }
+      ctx.closePath(); ctx.fill(); break;
+    }
+    case 'ei-cross':
+      ctx.fillRect(ex + s * 0.3, ey, s * 0.4, s);
+      ctx.fillRect(ex, ey + s * 0.3, s, s * 0.4); break;
+    case 'ei-heart': {
+      ctx.beginPath();
+      ctx.moveTo(cx, ey + s * 0.3);
+      ctx.bezierCurveTo(cx, ey, ex, ey, ex, ey + s * 0.3);
+      ctx.bezierCurveTo(ex, ey + s * 0.7, cx - s * 0.05, ey + s * 0.8, cx, ey + s);
+      ctx.bezierCurveTo(cx + s * 0.05, ey + s * 0.8, ex + s, ey + s * 0.7, ex + s, ey + s * 0.3);
+      ctx.bezierCurveTo(ex + s, ey, cx, ey, cx, ey + s * 0.3);
+      ctx.fill(); break;
+    }
+    case 'ei-leaf':
+      ctx.beginPath();
+      ctx.moveTo(cx, ey); ctx.bezierCurveTo(ex + s, ey, ex + s, ey + s, cx, ey + s);
+      ctx.bezierCurveTo(ex, ey + s, ex, ey, cx, ey); ctx.fill(); break;
+    case 'ei-dot':
+      ctx.beginPath(); ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2); ctx.fill(); break;
+    case 'ei-ring':
+      ctx.beginPath(); ctx.arc(cx, cy, r * 0.9, 0, Math.PI * 2); ctx.fill();
+      ctx.save(); ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath(); ctx.arc(cx, cy, r * 0.45, 0, Math.PI * 2); ctx.fill();
+      ctx.restore(); break;
+    case 'ei-hexagon': {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i - Math.PI / 6;
+        const x2 = cx + r * 0.9 * Math.cos(a), y2 = cy + r * 0.9 * Math.sin(a);
+        i === 0 ? ctx.moveTo(x2, y2) : ctx.lineTo(x2, y2);
+      }
+      ctx.closePath(); ctx.fill(); break;
+    }
+    case 'ei-shield': {
+      ctx.beginPath();
+      ctx.moveTo(cx, ey); ctx.lineTo(ex + s, ey + s * 0.2);
+      ctx.lineTo(ex + s, ey + s * 0.55); ctx.bezierCurveTo(ex + s, ey + s * 0.85, cx, ey + s, cx, ey + s);
+      ctx.bezierCurveTo(ex, ey + s, ex, ey + s * 0.85, ex, ey + s * 0.55); ctx.lineTo(ex, ey + s * 0.2);
+      ctx.closePath(); ctx.fill(); break;
+    }
+    case 'ei-arrow': {
+      ctx.beginPath();
+      ctx.moveTo(ex + s * 0.15, ey + s * 0.55); ctx.lineTo(cx, ey + s * 0.1);
+      ctx.lineTo(ex + s * 0.85, ey + s * 0.55); ctx.lineTo(ex + s * 0.65, ey + s * 0.55);
+      ctx.lineTo(ex + s * 0.65, ey + s * 0.9); ctx.lineTo(ex + s * 0.35, ey + s * 0.9);
+      ctx.lineTo(ex + s * 0.35, ey + s * 0.55); ctx.closePath(); ctx.fill(); break;
+    }
+    default: // ei-square
+      ctx.fillRect(ex, ey, s, s); break;
+  }
+}
+
+// ── Main QR render function ──────────────────────────────
+async function renderQR() {
+  const canvas = document.getElementById('qr-canvas');
+  const empty  = document.getElementById('qr-empty');
+  const loader = document.getElementById('qr-loading');
+  const infoRow = document.getElementById('qr-info-row');
+  const actBtns = document.getElementById('action-btns');
+  const warnBar = document.getElementById('warn-bar-prev');
+  if (!canvas) return;
+
+  const data = buildQRData();
+  if (!data) {
     canvas.style.display = 'none';
-    empty.style.display  = 'flex';
-    actBtns.style.display = 'none';
-    infoRow.style.display = 'none';
-    resetAnalytics();
+    if (empty) empty.style.display = '';
+    if (infoRow) infoRow.style.display = 'none';
+    if (actBtns) actBtns.style.display = 'none';
+    updateAnalytics(null, null);
     return;
   }
 
-  document.getElementById('qr-loading').style.display = 'flex';
-  canvas.style.display = 'none';
-  await new Promise(r => requestAnimationFrame(r));
+  if (loader) loader.style.display = '';
+  if (empty)  empty.style.display  = 'none';
 
-  try {
-    const modules = getMatrix(data, S.ec);
-    if (!modules) throw new Error('Failed to parse QR matrix');
+  await new Promise(r => setTimeout(r, 10));
 
-    const count  = modules.length;
-    const qzMods = S.qz;             // quiet zone in modules
-    const totalM = count + qzMods * 2;
-    const cs     = S.size / totalM;  // cell size in px
-    const qzPx   = qzMods * cs;      // quiet zone in px
-    const realBG = S.invert ? S.fgColor : S.bgColor;
-    const realFG = S.invert ? S.bgColor : S.fgColor;
-
-    // Frame space
-    let fTopH = 0, fBotH = 0;
-    if (S.frame === 'bottom-bar') fBotH = cs * 3.8;
-    else if (S.frame === 'top-bar') fTopH = cs * 3.8;
-    else if (S.frame === 'polaroid') { fTopH = cs * 0.6; fBotH = cs * 5; }
-
-    const cW = S.size;
-    const cH = S.size + fTopH + fBotH;
-    canvas.width  = cW;
-    canvas.height = cH;
-
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, cW, cH);
-
-    // ─ Background ─
-    if (S.shadow) {
-      ctx.shadowColor   = S.shadowColor;
-      ctx.shadowBlur    = S.shadowBlur;
-      ctx.shadowOffsetX = 3;
-      ctx.shadowOffsetY = 3;
-    }
-    if (!S.transparent) {
-      ctx.fillStyle = realBG;
-      ctx.fillRect(0, 0, cW, cH);
-    }
-    ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
-
-    const qrY = fTopH; // top offset of the QR area
-
-    // ─ Marker / Eye colors ─
-    const markerBorder = S.customMarker ? S.mbColor : realFG;
-    const markerCenter = S.customMarker ? S.mcColor : realFG;
-    const eyeFrameC    = S.customEF ? S.efColor : markerBorder;
-    const eyeInnerC    = S.customEI ? S.eiColor : markerCenter;
-
-    // ─ Draw QR body modules ─
-    for (let row = 0; row < count; row++) {
-      for (let col = 0; col < count; col++) {
-        if (isInFinder(row, col, count)) continue;
-        if (!modules[row][col]) continue;
-        const x = qzPx + col * cs;
-        const y = qrY + qzPx + row * cs;
-        drawModule(ctx, x, y, cs, S.pattern, realFG);
-      }
-    }
-
-    // ─ Gradient overlay ─
-    if (S.gradient) {
-      const rad = S.gAngle * Math.PI / 180;
-      const dx  = Math.cos(rad), dy = Math.sin(rad);
-      let grad;
-      if (S.gType === 'linear') {
-        grad = ctx.createLinearGradient(
-          cW / 2 - dx * cW / 2, qrY + S.size / 2 - dy * S.size / 2,
-          cW / 2 + dx * cW / 2, qrY + S.size / 2 + dy * S.size / 2
-        );
-      } else {
-        grad = ctx.createRadialGradient(cW / 2, qrY + S.size / 2, 0, cW / 2, qrY + S.size / 2, S.size / 2);
-      }
-      grad.addColorStop(0, S.gc1);
-      grad.addColorStop(1, S.gc2);
-      ctx.globalCompositeOperation = 'source-atop';
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, qrY, cW, S.size);
-      ctx.globalCompositeOperation = 'source-over';
-    }
-
-    // ─ Draw corner eyes ─
-    const eyeOffsets = [
-      { r: 0,         c: 0 },         // top-left
-      { r: 0,         c: count - 7 }, // top-right
-      { r: count - 7, c: 0 },         // bottom-left
-    ];
-    for (const ep of eyeOffsets) {
-      const ex = qzPx + ep.c * cs;
-      const ey = qrY  + qzPx + ep.r * cs;
-      drawEye(ctx, ex, ey, cs, S.eyeFrame, S.eyeInner, eyeFrameC, eyeInnerC, realBG);
-    }
-
-    // ─ Logo overlay ─
-    if (S.logoSrc) {
-      await drawLogoOnCanvas(ctx, cW, qrY, S.size);
-    }
-
-    // ─ Frame ─
-    if (S.frame !== 'none') {
-      drawFrame(ctx, cW, cH, fTopH, fBotH, cs);
-    }
-
-    // ─ Transforms: rotation + flip ─
-    if (S.rotation !== 0 || S.flipH || S.flipV) {
-      applyCanvasTransform(canvas, cW, cH);
-    }
-
-    // ─ Show result ─
-    canvas.style.display = 'block';
-    empty.style.display  = 'none';
-    actBtns.style.display = 'flex';
-    infoRow.style.display = 'flex';
-    canvas.style.filter   = S.filter !== 'none' ? S.filter : '';
-
-    updateAnalytics(count, data);
-    saveHistory(data);
-
-  } catch (e) {
-    console.error('renderQR error:', e);
-    showToast('QR generation error: ' + e.message, 'error');
-  } finally {
-    document.getElementById('qr-loading').style.display = 'none';
+  const modules = getMatrix(data, S.ec);
+  if (!modules) {
+    if (loader) loader.style.display = 'none';
+    if (warnBar) { warnBar.style.display = ''; warnBar.textContent = '⚠ Could not generate QR code. Try reducing the data or increasing error correction.'; }
+    return;
   }
-}
+  if (warnBar) warnBar.style.display = 'none';
 
-// ── Apply canvas transform (rotation / flip) ─────────────
-function applyCanvasTransform(canvas, cW, cH) {
-  const tmp = document.createElement('canvas');
-  tmp.width  = cW;
-  tmp.height = cH;
-  const tctx = tmp.getContext('2d');
-  tctx.translate(cW / 2, cH / 2);
-  if (S.rotation) tctx.rotate(S.rotation * Math.PI / 180);
-  if (S.flipH) tctx.scale(-1, 1);
-  if (S.flipV) tctx.scale(1, -1);
-  tctx.drawImage(canvas, -cW / 2, -cH / 2);
+  const count  = modules.length;
+  const sz     = S.size;
+
+  // Frame adjustments
+  const frameId = S.frame || 'frame-none';
+  const hasLabel = S.frameHasLabel && frameId !== 'frame-none';
+  const needsTopBar = ['frame-top-bar', 'frame-speech-bubble', 'frame-smartphone'].includes(frameId) && hasLabel;
+  const needsBottomBar = ['frame-bottom-bar', 'frame-badge', 'frame-rounded-border', 'frame-polaroid', 'frame-gradient-bar'].includes(frameId) && hasLabel;
+  const hasOuterFrame = !['frame-none'].includes(frameId);
+
+  // Calculate canvas dimensions
+  const topPad = needsTopBar ? Math.round(sz * 0.14) : (hasOuterFrame ? Math.round(sz * 0.04) : 0);
+  const botPad = needsBottomBar ? Math.round(sz * 0.14) : (hasOuterFrame ? Math.round(sz * 0.04) : 0);
+  const sidePad = hasOuterFrame ? Math.round(sz * 0.03) : 0;
+
+  const canvasW = sz + sidePad * 2;
+  const canvasH = sz + topPad + botPad;
+
+  canvas.width  = canvasW;
+  canvas.height = canvasH;
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, cW, cH);
-  ctx.drawImage(tmp, 0, 0);
+  ctx.clearRect(0, 0, canvasW, canvasH);
+
+  // Background
+  if (!S.transparent) {
+    ctx.fillStyle = S.bgColor;
+    ctx.fillRect(0, 0, canvasW, canvasH);
+  }
+
+  // Module / quiet zone calculations
+  const qzMod = S.qz;
+  const totalMods = count + qzMod * 2;
+  const modSize = sz / totalMods;
+  const qrLeft = sidePad + modSize * qzMod;
+  const qrTop  = topPad + modSize * qzMod;
+
+  // Foreground color / gradient
+  let fgFill;
+  if (S.gradient) {
+    let grad;
+    const gAngleRad = (S.gAngle * Math.PI) / 180;
+    if (S.gType === 'radial') {
+      grad = ctx.createRadialGradient(sidePad + sz / 2, topPad + sz / 2, 0, sidePad + sz / 2, topPad + sz / 2, sz / 2);
+    } else {
+      const dx = Math.cos(gAngleRad) * sz / 2, dy = Math.sin(gAngleRad) * sz / 2;
+      const cx2 = sidePad + sz / 2, cy2 = topPad + sz / 2;
+      grad = ctx.createLinearGradient(cx2 - dx, cy2 - dy, cx2 + dx, cy2 + dy);
+    }
+    grad.addColorStop(0, S.gc1);
+    grad.addColorStop(1, S.gc2);
+    fgFill = grad;
+  } else {
+    fgFill = S.fgColor;
+  }
+
+  // Draw data modules
+  ctx.fillStyle = fgFill;
+  for (let row = 0; row < count; row++) {
+    for (let col = 0; col < count; col++) {
+      if (!modules[row][col]) continue;
+      if (isInFinder(row, col, count)) continue;
+      const x = qrLeft + col * modSize;
+      const y = qrTop  + row * modSize;
+      drawModule(ctx, x, y, modSize, S.pattern);
+    }
+  }
+
+  // Draw finder patterns (eyes)
+  const eyePositions = [
+    { row: 0, col: 0 }, // top-left
+    { row: 0, col: count - 7 }, // top-right
+    { row: count - 7, col: 0 }, // bottom-left
+  ];
+
+  eyePositions.forEach(({ row, col }) => {
+    const ex = qrLeft + col * modSize;
+    const ey = qrTop  + row * modSize;
+
+    // Eye frame color
+    const efColor = S.customEF ? S.efColor : (S.customMarker ? S.mbColor : S.fgColor);
+    const efFill  = (efColor === S.fgColor && S.gradient) ? fgFill : efColor;
+
+    // Eye inner color
+    const eiColor = S.customEI ? S.eiColor : (S.customMarker ? S.mcColor : S.fgColor);
+    const eiFill  = (eiColor === S.fgColor && S.gradient) ? fgFill : eiColor;
+
+    // Draw outer frame
+    ctx.fillStyle = efFill;
+    ctx.strokeStyle = efFill;
+    drawEyeFrame(ctx, ex, ey, modSize, efFill, S.eyeFrame);
+
+    // Draw inner center (at row+2, col+2 = 3x3)
+    const ix = ex + modSize * 2;
+    const iy = ey + modSize * 2;
+    ctx.fillStyle = eiFill;
+    drawEyeInner(ctx, ix, iy, modSize, eiFill, S.eyeInner);
+  });
+
+  // Draw logo
+  const logoSrc = S.logoKey && S.logoKey !== 'none'
+    ? getLogoDataURL(S.logoKey)
+    : S.logoSrc;
+
+  if (logoSrc) {
+    await new Promise(res => {
+      const img = new Image();
+      img.onload = () => {
+        const logoW = (sz * S.logoSize) / 100;
+        const logoH = logoW;
+        const logoX = sidePad + (sz - logoW) / 2;
+        const logoY = topPad  + (sz - logoH) / 2;
+
+        if (S.logoRemoveBG) {
+          ctx.save();
+          ctx.globalCompositeOperation = 'destination-out';
+          const clearW = logoW + S.logoPad * 2;
+          const clearH = logoH + S.logoPad * 2;
+          const clearX = logoX - S.logoPad;
+          const clearY = logoY - S.logoPad;
+          ctx.beginPath();
+          rrect(ctx, clearX, clearY, clearW, clearH, S.logoBR * clearW / 100 + S.logoPad);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Padding background
+        if (S.logoPad > 0) {
+          ctx.fillStyle = S.logoPadColor;
+          ctx.beginPath();
+          rrect(ctx, logoX - S.logoPad, logoY - S.logoPad,
+                logoW + S.logoPad * 2, logoH + S.logoPad * 2,
+                S.logoBR * (logoW + S.logoPad * 2) / 100 + S.logoPad);
+          ctx.fill();
+        }
+
+        // Logo image
+        ctx.save();
+        ctx.beginPath();
+        rrect(ctx, logoX, logoY, logoW, logoH, S.logoBR * logoW / 100);
+        ctx.clip();
+        ctx.drawImage(img, logoX, logoY, logoW, logoH);
+        ctx.restore();
+        res();
+      };
+      img.onerror = () => res();
+      img.src = logoSrc;
+    });
+  }
+
+  // Apply shadow
+  if (S.shadow) {
+    const shadow = ctx.getImageData(0, 0, canvasW, canvasH);
+    const shadowCanvas = document.createElement('canvas');
+    shadowCanvas.width  = canvasW;
+    shadowCanvas.height = canvasH;
+    const sCtx = shadowCanvas.getContext('2d');
+    sCtx.shadowColor   = S.shadowColor + '88';
+    sCtx.shadowBlur    = S.shadowBlur;
+    sCtx.shadowOffsetX = S.shadowBlur * 0.5;
+    sCtx.shadowOffsetY = S.shadowBlur * 0.5;
+    sCtx.drawImage(canvas, 0, 0);
+    ctx.clearRect(0, 0, canvasW, canvasH);
+    ctx.drawImage(shadowCanvas, 0, 0);
+  }
+
+  // Draw frame
+  if (frameId !== 'frame-none') {
+    renderFrame(
+      ctx, frameId, canvasW > canvasH ? canvasH : canvasW,
+      sidePad, sz,
+      hasLabel ? (S.frameLabel || 'Scan Me') : '',
+      S.frameFont, S.frameTSize,
+      S.frameLabelColor, S.frameColor
+    );
+  }
+
+  // Apply filter / transform
+  if (S.rotation || S.flipH || S.flipV || S.invert || S.filter !== 'none') {
+    const tmp = document.createElement('canvas');
+    tmp.width  = canvasW;
+    tmp.height = canvasH;
+    const tCtx = tmp.getContext('2d');
+    tCtx.save();
+    tCtx.translate(canvasW / 2, canvasH / 2);
+    tCtx.rotate((S.rotation * Math.PI) / 180);
+    tCtx.scale(S.flipH ? -1 : 1, S.flipV ? -1 : 1);
+    tCtx.drawImage(canvas, -canvasW / 2, -canvasH / 2);
+    tCtx.restore();
+
+    if (S.invert) {
+      const id = tCtx.getImageData(0, 0, canvasW, canvasH);
+      for (let i = 0; i < id.data.length; i += 4) {
+        if (id.data[i + 3] > 0) { id.data[i] = 255 - id.data[i]; id.data[i+1] = 255 - id.data[i+1]; id.data[i+2] = 255 - id.data[i+2]; }
+      }
+      tCtx.putImageData(id, 0, 0);
+    }
+
+    ctx.clearRect(0, 0, canvasW, canvasH);
+    ctx.filter = S.filter !== 'none' ? S.filter : 'none';
+    ctx.drawImage(tmp, 0, 0);
+    ctx.filter = 'none';
+  }
+
+  // Show canvas, update UI
+  canvas.style.display = '';
+  if (loader) loader.style.display = 'none';
+  if (infoRow) infoRow.style.display = '';
+  if (actBtns) actBtns.style.display = '';
+
+  updateAnalytics(count, data);
+
+  // Auto-save to project (debounced)
+  schedProjectAutoSave(data);
 }
 
-// ── Analytics update ─────────────────────────────────────
+// ── Analytics ────────────────────────────────────────────
 function updateAnalytics(count, data) {
-  const chars    = data.length;
-  const version  = getQRVersion(count);
-  const scanScore = getScanScore(data);
-
-  // Info badges
-  const safe = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  safe('bi-size',  S.size + 'px');
-  safe('bi-ver',   version);
-  safe('bi-mod',   count + '×' + count);
-  safe('bi-chars', chars);
-
-  // Analytics panel
-  safe('a-chars',   chars);
-  safe('a-version', version);
-  safe('a-modules', count + '×' + count);
-  const sv = document.getElementById('a-scan');
-  if (sv) { sv.textContent = scanScore.label; sv.style.color = scanScore.color; }
-
-  // Warnings
-  const warnings = [];
-  if (S.size < 200)     warnings.push('QR size is too small for reliable scanning');
-  if (S.logoSize > 30)  warnings.push('Logo > 30% may affect scanning');
-  if (chars > 300)      warnings.push('Large data increases QR complexity');
-  if (S.fgColor === S.bgColor) warnings.push('Foreground and background are the same color');
-
-  const wbP = document.getElementById('warn-bar-prev');
-  const wbA = document.getElementById('warn-bar');
-  const show = warnings.length > 0;
-  const txt  = show ? ('⚠️ ' + warnings[0]) : '';
-  if (wbP) { wbP.style.display = show ? 'flex' : 'none'; wbP.textContent = txt; }
-  if (wbA) { wbA.style.display = show ? 'flex' : 'none'; wbA.textContent = txt; }
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const canvas = document.getElementById('qr-canvas');
+  if (!count || !data) {
+    set('a-chars', '—'); set('a-version', '—'); set('a-modules', '—'); set('a-scan', '—');
+    set('bi-size', '—'); set('bi-ver', '—'); set('bi-mod', '—'); set('bi-chars', '—');
+    return;
+  }
+  const ver = Math.round((count - 17) / 4);
+  const chars = data.length;
+  const scanQ = chars > 200 ? 'Moderate' : 'High';
+  set('a-chars', chars); set('a-version', ver); set('a-modules', count + '×' + count); set('a-scan', scanQ);
+  set('bi-size', (canvas ? canvas.width : S.size) + 'px');
+  set('bi-ver', ver); set('bi-mod', count + '×' + count); set('bi-chars', chars);
 }
 
-function resetAnalytics() {
-  ['a-chars','a-version','a-modules','a-scan','bi-size','bi-ver','bi-mod','bi-chars']
-    .forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '—'; });
-  const wbP = document.getElementById('warn-bar-prev');
-  const wbA = document.getElementById('warn-bar');
-  if (wbP) wbP.style.display = 'none';
-  if (wbA) wbA.style.display = 'none';
-}
-
-function getQRVersion(count) {
-  const sizes = [21,25,29,33,37,41,45,49,53,57,61,65,69,73,77,81,85,89,93,97,
-                 101,105,109,113,117,121,125,129,133,137,141,145,149,153,157,161,165,169,173,177];
-  const i = sizes.indexOf(count);
-  return i >= 0 ? String(i + 1) : '?';
-}
-
-function getScanScore(data) {
-  const len = data.length;
-  if (len > 400 || S.logoSize > 35 || S.size < 150)
-    return { label: 'Low',       color: '#e74c3c' };
-  if (len > 200 || S.logoSize > 25 || S.size < 250)
-    return { label: 'Medium',    color: '#f39c12' };
-  if (len > 100)
-    return { label: 'Good',      color: '#2D9CDB' };
-  return { label: 'Excellent',   color: '#27AE60' };
+// Project auto-save debouncer
+let projectSaveTimer = null;
+function schedProjectAutoSave(data) {
+  clearTimeout(projectSaveTimer);
+  projectSaveTimer = setTimeout(() => autoSaveProject(data), 1000);
 }

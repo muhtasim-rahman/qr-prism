@@ -1,668 +1,550 @@
 // =========================================================
-// UI.JS — All UI helpers: tabs, grids, color sync, modals
+// js/ui.js — UI helpers, grids, mode switching, nav
+// V2.0 — Responsive sidebar (PC), top nav (tablet), bottom nav (mobile)
 // =========================================================
 
-const PATTERNS = [
-  { key: 'square',        name: 'Square'      },
-  { key: 'dots',          name: 'Dots'        },
-  { key: 'rounded',       name: 'Rounded'     },
-  { key: 'extra-rounded', name: 'Soft Round'  },
-  { key: 'classy',        name: 'Classy'      },
-  { key: 'diamond',       name: 'Diamond'     },
-  { key: 'star',          name: 'Star'        },
-  { key: 'heart',         name: 'Heart'       },
-  { key: 'plus',          name: 'Plus'        },
-  { key: 'cross',         name: 'Cross'       },
-  { key: 'h-lines',       name: 'H-Lines'     },
-  { key: 'v-lines',       name: 'V-Lines'     },
-];
+// ── Escape HTML ──────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-const EYE_FRAMES = [
-  { key: 'square',        name: 'Square'      },
-  { key: 'rounded',       name: 'Rounded'     },
-  { key: 'extra-rounded', name: 'Soft Round'  },
-  { key: 'circle',        name: 'Circle'      },
-  { key: 'diamond',       name: 'Diamond'     },
-  { key: 'dots',          name: 'Dotted'      },
-];
+// ── View / Mode switching ────────────────────────────────
+function switchView(mode) {
+  document.querySelectorAll('.view-panel').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const panel = document.getElementById('view-' + mode);
+  if (panel) panel.classList.add('active');
+  document.querySelectorAll(`[data-view="${mode}"]`).forEach(el => el.classList.add('active'));
 
-const EYE_INNERS = [
-  { key: 'square',        name: 'Square'      },
-  { key: 'circle',        name: 'Circle'      },
-  { key: 'rounded',       name: 'Rounded'     },
-  { key: 'extra-rounded', name: 'Soft Round'  },
-  { key: 'diamond',       name: 'Diamond'     },
-  { key: 'star',          name: 'Star'        },
-];
+  if (mode === 'projects') renderProjectsView();
+  if (mode === 'templates-page') { renderPremiumTemplates(); renderUserTemplates(); }
+  if (mode === 'settings') renderSettingsPage();
+  if (mode === 'batch') renderBatchView();
+  if (mode === 'scan') stopScanner();
 
-const LOGO_PRESETS = [
-  { key:'none',      icon:'fa-xmark',               label:'None',      color:'#e74c3c' },
-  { key:'facebook',  icon:'fa-brands fa-facebook',  label:'Facebook',  color:'#1877f2' },
-  { key:'instagram', icon:'fa-brands fa-instagram', label:'Instagram', color:'#e1306c' },
-  { key:'youtube',   icon:'fa-brands fa-youtube',   label:'YouTube',   color:'#ff0000' },
-  { key:'tiktok',    icon:'fa-brands fa-tiktok',    label:'TikTok',    color:'#010101' },
-  { key:'twitter',   icon:'fa-brands fa-x-twitter', label:'X / Twitter',color:'#000000'},
-  { key:'linkedin',  icon:'fa-brands fa-linkedin',  label:'LinkedIn',  color:'#0077b5' },
-  { key:'whatsapp',  icon:'fa-brands fa-whatsapp',  label:'WhatsApp',  color:'#25d366' },
-  { key:'telegram',  icon:'fa-brands fa-telegram',  label:'Telegram',  color:'#0088cc' },
-  { key:'snapchat',  icon:'fa-brands fa-snapchat',  label:'Snapchat',  color:'#f7c400' },
-  { key:'pinterest', icon:'fa-brands fa-pinterest', label:'Pinterest', color:'#e60023' },
-  { key:'reddit',    icon:'fa-brands fa-reddit',    label:'Reddit',    color:'#ff4500' },
-  { key:'discord',   icon:'fa-brands fa-discord',   label:'Discord',   color:'#5865f2' },
-  { key:'github',    icon:'fa-brands fa-github',    label:'GitHub',    color:'#24292e' },
-  { key:'spotify',   icon:'fa-brands fa-spotify',   label:'Spotify',   color:'#1db954' },
-  { key:'netflix',   icon:'fa-brands fa-netflix',   label:'Netflix',   color:'#e50914' },
-  { key:'paypal',    icon:'fa-brands fa-paypal',    label:'PayPal',    color:'#003087' },
-  { key:'amazon',    icon:'fa-brands fa-amazon',    label:'Amazon',    color:'#ff9900' },
-  { key:'apple',     icon:'fa-brands fa-apple',     label:'Apple',     color:'#555555' },
-  { key:'android',   icon:'fa-brands fa-android',   label:'Android',   color:'#3ddc84' },
-  { key:'chrome',    icon:'fa-brands fa-chrome',    label:'Chrome',    color:'#4285f4' },
-  { key:'bitcoin',   icon:'fa-brands fa-bitcoin',   label:'Bitcoin',   color:'#f7931a' },
-  { key:'ethereum',  icon:'fa-brands fa-ethereum',  label:'Ethereum',  color:'#627eea' },
-  { key:'twitch',    icon:'fa-brands fa-twitch',    label:'Twitch',    color:'#9146ff' },
-  { key:'slack',     icon:'fa-brands fa-slack',     label:'Slack',     color:'#4a154b' },
-  { key:'zoom',      icon:'fa-solid fa-video',      label:'Zoom',      color:'#2d8cff' },
-  { key:'google',    icon:'fa-brands fa-google',    label:'Google',    color:'#4285f4' },
-  { key:'dropbox',   icon:'fa-brands fa-dropbox',   label:'Dropbox',   color:'#0061ff' },
-  { key:'medium',    icon:'fa-brands fa-medium',    label:'Medium',    color:'#02b875' },
-  { key:'wordpress', icon:'fa-brands fa-wordpress', label:'WordPress', color:'#21759b' },
-];
+  // Close sidebar on mobile after navigation
+  if (window.innerWidth < 768) closeSidebar();
+}
 
-const FRAMES_WITH_LABEL = [
-  { key:'none',       name:'No Frame',  icon:'✕' },
-  { key:'bottom-bar', name:'Bottom Bar',icon:'⬛' },
-  { key:'top-bar',    name:'Top Bar',   icon:'🔲' },
-  { key:'polaroid',   name:'Polaroid',  icon:'📷' },
-];
-const FRAMES_NO_LABEL = [
-  { key:'none',           name:'No Frame', icon:'✕' },
-  { key:'square-thin',    name:'Sq. Thin', icon:'□' },
-  { key:'square-thick',   name:'Sq. Thick',icon:'■' },
-  { key:'rounded-border', name:'Rounded',  icon:'▢' },
-  { key:'circle-border',  name:'Circle',   icon:'○' },
-  { key:'dashed-border',  name:'Dashed',   icon:'⬚' },
-  { key:'bracket',        name:'Bracket',  icon:'⌐' },
-];
+// ── Sidebar (PC) ─────────────────────────────────────────
+let _sidebarCollapsed = false;
+function toggleSidebar() {
+  _sidebarCollapsed = !_sidebarCollapsed;
+  document.getElementById('app-sidebar')?.classList.toggle('collapsed', _sidebarCollapsed);
+  document.getElementById('main-content')?.classList.toggle('sidebar-collapsed', _sidebarCollapsed);
+  localStorage.setItem('sidebar_collapsed', _sidebarCollapsed ? '1' : '0');
+}
+function closeSidebar() {
+  document.getElementById('app-sidebar')?.classList.remove('open');
+  document.getElementById('sidebar-overlay')?.classList.remove('active');
+}
+function openSidebar() {
+  document.getElementById('app-sidebar')?.classList.add('open');
+  document.getElementById('sidebar-overlay')?.classList.add('active');
+}
 
-const PRESETS = [
-  { name:'Classic',    fgColor:'#000000', bgColor:'#ffffff', pattern:'square',        eyeFrame:'square',        eyeInner:'square'  },
-  { name:'Ocean',      fgColor:'#1a5276', bgColor:'#d6eaf8', pattern:'dots',          eyeFrame:'circle',        eyeInner:'circle',  gradient:true, gc1:'#1a5276', gc2:'#2980b9', gType:'linear', gAngle:45  },
-  { name:'Forest',     fgColor:'#1e8449', bgColor:'#eafaf1', pattern:'rounded',       eyeFrame:'rounded',       eyeInner:'rounded', gradient:true, gc1:'#1e8449', gc2:'#27ae60', gType:'linear', gAngle:135 },
-  { name:'Sunset',     fgColor:'#784212', bgColor:'#fef9e7', pattern:'extra-rounded', eyeFrame:'extra-rounded', eyeInner:'circle',  gradient:true, gc1:'#e67e22', gc2:'#e74c3c', gType:'linear', gAngle:45  },
-  { name:'Dark Night', fgColor:'#aed6f1', bgColor:'#1a252f', pattern:'dots',          eyeFrame:'circle',        eyeInner:'circle',  gradient:true, gc1:'#aed6f1', gc2:'#85c1e9', gType:'linear', gAngle:45  },
-  { name:'Minimal',    fgColor:'#333333', bgColor:'#ffffff', pattern:'square',        eyeFrame:'square',        eyeInner:'square'  },
-  { name:'Galaxy',     fgColor:'#6c3483', bgColor:'#f4ecf7', pattern:'star',          eyeFrame:'diamond',       eyeInner:'star',    gradient:true, gc1:'#6c3483', gc2:'#1a1a2e', gType:'radial' },
-  { name:'Gold',       fgColor:'#7d6608', bgColor:'#fef9e7', pattern:'classy',        eyeFrame:'diamond',       eyeInner:'diamond', gradient:true, gc1:'#b7950b', gc2:'#f1c40f', gType:'linear', gAngle:45  },
-  { name:'Neon Cyber', fgColor:'#00ff88', bgColor:'#0d0d0d', pattern:'dots',          eyeFrame:'extra-rounded', eyeInner:'circle',  gradient:true, gc1:'#00ff88', gc2:'#00ccff', gType:'linear', gAngle:90  },
-  { name:'Pastel',     fgColor:'#a569bd', bgColor:'#fdf2f8', pattern:'rounded',       eyeFrame:'rounded',       eyeInner:'circle',  gradient:true, gc1:'#c39bd3', gc2:'#85c1e9', gType:'linear', gAngle:45  },
-  { name:'Retro',      fgColor:'#1a1a1a', bgColor:'#f5f5dc', pattern:'square',        eyeFrame:'square',        eyeInner:'square'  },
-  { name:'Tech Blue',  fgColor:'#1565c0', bgColor:'#e3f2fd', pattern:'extra-rounded', eyeFrame:'rounded',       eyeInner:'rounded', gradient:true, gc1:'#1565c0', gc2:'#42a5f5', gType:'linear', gAngle:135 },
-];
+// ── QR Type switching ─────────────────────────────────────
+function switchQRType(key, doRender = true) {
+  S.activeType = key;
+  document.querySelectorAll('.type-chip').forEach(c => c.classList.toggle('active', c.dataset.type === key));
+  const t = QR_TYPES.find(t => t.key === key);
+  const formTitle = document.getElementById('form-title');
+  if (formTitle) formTitle.textContent = t ? t.title : key;
+  const ff = document.getElementById('form-fields');
+  if (ff) ff.innerHTML = FORMS[key] || '<p style="color:var(--muted);padding:8px;">No form for this type.</p>';
 
-// =========================================================
-// TYPE TABS + FORMS
-// =========================================================
+  // Auto-apply logo if type has one and user hasn't set a custom logo
+  const autoLogo = QR_TYPE_AUTO_LOGOS[key];
+  if (autoLogo && !S.logoSrc) {
+    S.logoKey = autoLogo;
+    updateLogoGrid();
+  }
 
-function renderTypeTabs() {
+  if (doRender) schedRender();
+}
+
+// ── Build type chips ──────────────────────────────────────
+function buildTypeChips() {
   const wrap = document.getElementById('type-tabs');
   if (!wrap) return;
   wrap.innerHTML = QR_TYPES.map(t => `
-    <button class="type-tab ${t.key === S.activeType ? 'active' : ''}"
-            onclick="selectType('${t.key}', this)">
-      <i class="fa-solid ${t.icon}"></i>${t.label}
+    <button class="type-chip${S.activeType === t.key ? ' active' : ''}" data-type="${t.key}" onclick="switchQRType('${t.key}')" title="${t.title}">
+      <i class="fa-solid ${t.icon}"></i>
+      <span>${t.label}</span>
     </button>`).join('');
 }
 
-function selectType(key, btn) {
-  S.activeType = key;
-  document.querySelectorAll('.type-tab').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  renderForm(key);
+// ── Card accordion ────────────────────────────────────────
+function toggleCard(header) {
+  const card = header.closest('.card');
+  const body = card.querySelector('.card-body');
+  const arrow = header.querySelector('.arrow');
+  const isOpen = header.classList.contains('open');
+  header.classList.toggle('open', !isOpen);
+  if (body) body.classList.toggle('hidden', isOpen);
+  if (arrow) arrow.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+// ── Sub-tabs ──────────────────────────────────────────────
+function switchStab(group, idx, el) {
+  el.closest('.sub-tabs').querySelectorAll('.stab').forEach((s, i) => s.classList.toggle('active', i === idx));
+  document.querySelectorAll(`[id^="${group}-"]`).forEach((p, i) => p.classList.toggle('active', i === idx));
+}
+
+// ── Color Tab ─────────────────────────────────────────────
+function switchCTab(idx, el) {
+  el.closest('.color-tabs').querySelectorAll('.ctab').forEach((c, i) => c.classList.toggle('active', i === idx));
+  document.querySelectorAll('.csub').forEach((c, i) => c.classList.toggle('active', i === idx));
+}
+
+// ── Color sync ────────────────────────────────────────────
+function syncColor(key, val) {
+  const map = {
+    fg: ['fgColor', 'fg-hex'], bg: ['bgColor', 'bg-hex'],
+    gc1: ['gc1', 'gc1-hex'], gc2: ['gc2', 'gc2-hex'],
+    mb: ['mbColor', 'mb-hex'], mc: ['mcColor', 'mc-hex'],
+    ef: ['efColor', 'ef-hex'], ei: ['eiColor', 'ei-hex'],
+    fc: ['frameColor', 'fc-hex'], fc2: ['frameColor', 'fc2-hex'],
+    flc: ['frameLabelColor', 'flc-hex'],
+    lpc: ['logoPadColor', 'lpc-hex'], sc: ['shadowColor', 'sc-hex'],
+  };
+  if (!map[key]) return;
+  S[map[key][0]] = val;
+  const hex = document.getElementById(map[key][1]);
+  if (hex) hex.value = val;
+  const sw  = document.getElementById(key + '-sw');
+  if (sw)  sw.style.background = val;
+  if (key === 'fc' || key === 'fc2') S.frameColor = val;
   schedRender();
 }
 
-function renderForm(key) {
-  const type  = QR_TYPES.find(t => t.key === key);
-  const title = document.getElementById('form-title');
-  const body  = document.getElementById('form-fields');
-  if (title) title.textContent = type ? type.title : key;
-  if (body)  body.innerHTML = FORMS[key] || '';
+function syncHex(key, val) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(val)) return;
+  const colorIn = document.getElementById(key + '-color') || document.getElementById(key + 'c-color');
+  if (colorIn) { colorIn.value = val; syncColor(key, val); }
 }
 
-// =========================================================
-// PATTERN / EYE GRIDS
-// =========================================================
+// ── Design Grids ─────────────────────────────────────────
+function buildDesignGrids() {
+  // Pattern grid
+  const pg = document.getElementById('design-grid');
+  if (pg) pg.innerHTML = PATTERN_DESIGNS.map(p => designCard(p.id, p.name, p.svg, S.pattern, 'selectPattern')).join('');
 
-function renderDesignGrid() {
-  _renderPatternGrid('design-grid', PATTERNS, 'pattern', (key) => { S.pattern = key; });
-}
-function renderEyeFrameGrid() {
-  _renderEyeGrid('eyeframe-grid', EYE_FRAMES, 'eyeFrame', (key) => { S.eyeFrame = key; }, false);
-}
-function renderEyeInnerGrid() {
-  _renderEyeGrid('eyeinner-grid', EYE_INNERS, 'eyeInner', (key) => { S.eyeInner = key; }, true);
-}
+  // Eye frame grid
+  const efg = document.getElementById('eyeframe-grid');
+  if (efg) efg.innerHTML = EYE_FRAME_DESIGNS.map(p => designCard(p.id, p.name, p.svg, S.eyeFrame, 'selectEyeFrame')).join('');
 
-function _renderPatternGrid(containerId, items, stateKey, onSelect) {
-  const grid = document.getElementById(containerId);
-  if (!grid) return;
-  grid.innerHTML = '';
-  items.forEach(p => {
-    const item = document.createElement('div');
-    item.className = 'p-item' + (p.key === S[stateKey] ? ' active' : '');
-    item.title = p.name;
+  // Eye inner grid
+  const eig = document.getElementById('eyeinner-grid');
+  if (eig) eig.innerHTML = EYE_INNER_DESIGNS.map(p => designCard(p.id, p.name, p.svg, S.eyeInner, 'selectEyeInner')).join('');
 
-    const c = document.createElement('canvas');
-    c.width = 60; c.height = 60;
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 60, 60);
-    [[5,5],[24,5],[43,5],[5,24],[24,24],[43,24],[5,43],[24,43],[43,43]]
-      .forEach(([x,y]) => drawModule(ctx, x, y, 17, p.key, '#222'));
-
-    const lbl = document.createElement('div');
-    lbl.className = 'p-name';
-    lbl.textContent = p.name;
-
-    item.appendChild(c);
-    item.appendChild(lbl);
-    item.onclick = () => {
-      onSelect(p.key);
-      grid.querySelectorAll('.p-item').forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
-      schedRender();
-    };
-    grid.appendChild(item);
-  });
+  // Frame grids
+  const flg = document.getElementById('frame-label-grid');
+  if (flg) flg.innerHTML = FRAME_DESIGNS_WITH_LABEL.map(f => frameCard(f, S.frame, true)).join('');
+  const fng = document.getElementById('frame-nolabel-grid');
+  if (fng) fng.innerHTML = FRAME_DESIGNS_NO_LABEL.map(f => frameCard(f, S.frame, false)).join('');
 }
 
-function _renderEyeGrid(containerId, items, stateKey, onSelect, innerMode) {
-  const grid = document.getElementById(containerId);
-  if (!grid) return;
-  grid.innerHTML = '';
-  items.forEach(ef => {
-    const item = document.createElement('div');
-    item.className = 'p-item' + (ef.key === S[stateKey] ? ' active' : '');
-    item.title = ef.name;
-
-    const c = document.createElement('canvas');
-    c.width = 60; c.height = 60;
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = '#f5f5f5'; ctx.fillRect(0, 0, 60, 60);
-    const cs = (60 - 8) / 7;
-    if (innerMode) {
-      drawEye(ctx, 4, 4, cs, 'square', ef.key, '#222', '#222', '#f5f5f5');
-    } else {
-      drawEye(ctx, 4, 4, cs, ef.key, 'square', '#222', '#222', '#f5f5f5');
-    }
-
-    const lbl = document.createElement('div');
-    lbl.className = 'p-name';
-    lbl.textContent = ef.name;
-
-    item.appendChild(c);
-    item.appendChild(lbl);
-    item.onclick = () => {
-      onSelect(ef.key);
-      grid.querySelectorAll('.p-item').forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
-      schedRender();
-    };
-    grid.appendChild(item);
-  });
+function designCard(id, name, svg, selected, fn) {
+  return `<div class="design-card${selected === id ? ' active' : ''}" id="dc-${id}" onclick="${fn}('${id}')" title="${name}">
+    <div class="design-preview">${svg || ''}</div>
+    <div class="design-label">${name}</div>
+  </div>`;
 }
 
-// =========================================================
-// LOGO
-// =========================================================
+function frameCard(f, selected, hasLabel) {
+  if (f.id === 'frame-none') {
+    return `<div class="design-card${selected === f.id ? ' active' : ''}" id="dc-${f.id}-${hasLabel?'l':'n'}" onclick="selectFrame('${f.id}',${hasLabel})" title="${f.name}">
+      <div class="design-preview" style="font-size:20px;display:flex;align-items:center;justify-content:center;">${f.icon}</div>
+      <div class="design-label">${f.name}</div>
+    </div>`;
+  }
+  return `<div class="design-card${selected === f.id ? ' active' : ''}" id="dc-${f.id}-${hasLabel?'l':'n'}" onclick="selectFrame('${f.id}',${hasLabel})" title="${f.name}">
+    <div class="design-preview frame-svg">${typeof f.icon === 'string' && f.icon.startsWith('<svg') ? f.icon : f.icon}</div>
+    <div class="design-label">${f.name}</div>
+  </div>`;
+}
 
-function renderLogoGrid(filter = '') {
+function selectPattern(id) {
+  S.pattern = id;
+  document.querySelectorAll('#design-grid .design-card').forEach(c => c.classList.toggle('active', c.id === 'dc-' + id));
+  schedRender();
+}
+function selectEyeFrame(id) {
+  S.eyeFrame = id;
+  document.querySelectorAll('#eyeframe-grid .design-card').forEach(c => c.classList.toggle('active', c.id === 'dc-' + id));
+  schedRender();
+}
+function selectEyeInner(id) {
+  S.eyeInner = id;
+  document.querySelectorAll('#eyeinner-grid .design-card').forEach(c => c.classList.toggle('active', c.id === 'dc-' + id));
+  schedRender();
+}
+function selectFrame(id, hasLabel) {
+  S.frame = id; S.frameHasLabel = hasLabel;
+  document.querySelectorAll('.frame-grid .design-card').forEach(c => c.classList.remove('active'));
+  const card = document.getElementById('dc-' + id + '-' + (hasLabel ? 'l' : 'n'));
+  if (card) card.classList.add('active');
+  schedRender();
+}
+
+// ── Logo Grid ─────────────────────────────────────────────
+function buildLogoGrid(filter = '') {
   const grid = document.getElementById('logo-grid');
   if (!grid) return;
-  const list = filter
-    ? LOGO_PRESETS.filter(l => l.label.toLowerCase().includes(filter.toLowerCase()))
-    : LOGO_PRESETS;
-
-  grid.innerHTML = list.map(l => `
-    <div class="l-item ${S.logoKey === l.key ? 'active' : ''}"
-         onclick="selectLogoPreset('${l.key}')"
-         title="${l.label}"
-         style="color:${l.color};">
-      <i class="${l.icon}"></i>
+  const filtered = LOGO_PRESETS.filter(l => l.label.toLowerCase().includes(filter.toLowerCase()));
+  grid.innerHTML = filtered.map(l => `
+    <div class="logo-card${S.logoKey === l.key ? ' active' : ''}" onclick="selectLogoPreset('${l.key}')" title="${l.label}">
+      ${l.svg
+        ? `<div class="logo-svg-wrap">${l.svg}</div>`
+        : `<div class="logo-svg-wrap" style="color:${l.color};font-size:24px;"><i class="fa-solid fa-xmark"></i></div>`}
+      <div class="logo-label">${l.label}</div>
     </div>`).join('');
 }
 
-function filterLogos(val) { renderLogoGrid(val); }
+function updateLogoGrid() { buildLogoGrid(); }
 
 function selectLogoPreset(key) {
-  if (key === 'none') {
-    S.logoKey = null; S.logoSrc = null;
-    document.getElementById('logo-prev-area').innerHTML = '';
-  } else {
-    const preset = LOGO_PRESETS.find(l => l.key === key);
-    S.logoKey = key;
-    if (preset) S.logoSrc = _genIconLogo(preset);
-  }
-  renderLogoGrid();
+  S.logoKey = key;
+  S.logoSrc = key === 'none' ? null : S.logoSrc; // keep custom if not none
+  if (key !== 'none') S.logoSrc = null; // use preset, clear custom
+  document.querySelectorAll('.logo-card').forEach(c => c.classList.remove('active'));
+  const found = [...document.querySelectorAll('.logo-card')].find(c => c.onclick?.toString().includes(`'${key}'`));
+  if (found) found.classList.add('active');
+  updateLogoPreview();
   schedRender();
 }
 
-function _genIconLogo(preset) {
-  const c = document.createElement('canvas');
-  c.width = 100; c.height = 100;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = preset.color;
-  try { ctx.roundRect(0, 0, 100, 100, 18); } catch(e) { ctx.rect(0, 0, 100, 100); }
-  ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 50px Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(preset.label[0].toUpperCase(), 50, 53);
-  return c.toDataURL();
+function filterLogos(val) { buildLogoGrid(val); }
+
+function updateLogoPreview() {
+  const area = document.getElementById('logo-prev-area');
+  if (!area) return;
+  if (S.logoSrc || (S.logoKey && S.logoKey !== 'none')) {
+    const src = S.logoSrc || getLogoDataURL(S.logoKey);
+    area.innerHTML = src
+      ? `<div class="logo-preview-wrap"><img src="${src}" class="logo-preview-img"><button class="logo-remove-btn" onclick="removeLogo()"><i class="fa-solid fa-xmark"></i></button></div>`
+      : '';
+  } else {
+    area.innerHTML = '';
+  }
 }
 
 function handleLogoFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  if (file.size > 5 * 1024 * 1024) { showToast('File too large (max 5 MB)', 'error'); return; }
+  const file = input.files[0]; if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('Logo too large (max 5 MB)', 'error'); return; }
   const reader = new FileReader();
   reader.onload = (e) => {
-    S.logoSrc = e.target.result;
-    S.logoKey = 'custom';
-    document.getElementById('logo-prev-area').innerHTML = `
-      <div class="logo-prev">
-        <img src="${e.target.result}" alt="Logo">
-        <span class="lp-name">${escHtml(file.name)}</span>
-        <button class="lp-rm" onclick="removeLogo()">
-          <i class="fa-solid fa-xmark"></i> Remove
-        </button>
-      </div>`;
-    renderLogoGrid();
-    schedRender();
+    S.logoSrc = e.target.result; S.logoKey = 'custom';
+    updateLogoPreview(); schedRender();
   };
   reader.readAsDataURL(file);
-  input.value = '';
 }
 
 function handleLogoDrop(e) {
   e.preventDefault();
   document.getElementById('logo-upload').classList.remove('drag-over');
   const file = e.dataTransfer.files[0];
-  if (!file) return;
-  const dt = new DataTransfer();
-  dt.items.add(file);
-  const inp = document.getElementById('logo-file');
-  inp.files = dt.files;
-  handleLogoFile(inp);
+  if (file) { const fi = document.getElementById('logo-file'); fi.files = e.dataTransfer.files; handleLogoFile(fi); }
 }
 
 function removeLogo() {
-  S.logoSrc = null; S.logoKey = null;
-  document.getElementById('logo-prev-area').innerHTML = '';
-  renderLogoGrid();
-  schedRender();
+  S.logoSrc = null; S.logoKey = 'none';
+  document.getElementById('logo-file').value = '';
+  updateLogoPreview(); buildLogoGrid(); schedRender();
 }
 
-// =========================================================
-// FRAME GRIDS
-// =========================================================
-
-function renderFrameGrids() {
-  _buildFrameGrid('frame-label-grid',   FRAMES_WITH_LABEL);
-  _buildFrameGrid('frame-nolabel-grid', FRAMES_NO_LABEL);
-}
-
-function _buildFrameGrid(id, list) {
-  const grid = document.getElementById(id);
-  if (!grid) return;
-  grid.innerHTML = list.map(f => `
-    <div class="f-item ${S.frame === f.key ? 'active' : ''}"
-         onclick="selectFrame('${f.key}')">
-      <div class="f-icon">${f.icon}</div>
-      <div class="f-name">${f.name}</div>
-    </div>`).join('');
-}
-
-function selectFrame(key) {
-  S.frame = key;
-  renderFrameGrids();
-  schedRender();
-}
-
-// =========================================================
-// TEMPLATES
-// =========================================================
-
-function renderPresetTemplates() {
-  const grid = document.getElementById('preset-tgrid');
-  if (!grid) return;
-  grid.innerHTML = PRESETS.map((p, i) => `
-    <div class="t-card" onclick="applyPreset(${i})">
-      <div class="t-prev" style="background:${p.bgColor || '#fff'};">
-        <div style="
-          width:46px; height:46px;
-          background:${p.fgColor || '#000'};
-          border-radius:${p.pattern === 'dots' ? '50%' : p.pattern === 'rounded' ? '30%' : '5px'};
-          opacity:.9;
-        "></div>
-      </div>
-      <div class="t-name">${p.name}</div>
-    </div>`).join('');
-}
-
-function applyPreset(index) {
-  const p = PRESETS[index];
-  if (!p) return;
-  ['fgColor','bgColor','pattern','eyeFrame','eyeInner','frameColor',
-   'gradient','gc1','gc2','gType','gAngle'].forEach(f => {
-    if (p[f] !== undefined) S[f] = p[f];
-  });
-  syncAllUI();
-  schedRender();
-  showToast('Applied: ' + p.name, 'success');
-}
-
-// =========================================================
-// COLOR SYNC
-// =========================================================
-
-const COLOR_MAP = {
-  fg:'fgColor', bg:'bgColor',
-  gc1:'gc1',    gc2:'gc2',
-  mb:'mbColor', mc:'mcColor',
-  ef:'efColor', ei:'eiColor',
-  lpc:'logoPadColor',
-  flc:'frameLabelColor',
-  fc:'frameColor', fc2:'frameColor',
-  sc:'shadowColor',
-};
-
-function syncColor(key, val) {
-  if (!val.match(/^#[0-9A-Fa-f]{6}$/)) return;
-  const sk = COLOR_MAP[key];
-  if (sk) S[sk] = val;
-  const sw  = document.getElementById(key + '-sw');
-  const hex = document.getElementById(key + '-hex');
-  if (sw)  sw.style.background = val;
-  if (hex) hex.value = val;
-  schedRender();
-}
-
-function syncHex(key, val) {
-  if (!val.match(/^#[0-9A-Fa-f]{6}$/)) return;
-  syncColor(key, val);
-  const ci = document.getElementById(key + '-color');
-  if (ci) ci.value = val;
-}
-
-function syncAllUI() {
-  // Sync color swatches + hex fields + pickers
-  Object.entries(COLOR_MAP).forEach(([key, sk]) => {
-    const val = S[sk];
-    if (!val) return;
-    const sw  = document.getElementById(key + '-sw');
-    const hex = document.getElementById(key + '-hex');
-    const ci  = document.getElementById(key + '-color');
-    if (sw)  sw.style.background = val;
-    if (hex) hex.value = val;
-    if (ci)  ci.value  = val;
-  });
-  // Size / EC
-  const sz = document.getElementById('qr-size');   if (sz) sz.value = S.size;
-  const ec = document.getElementById('ec-level');  if (ec) ec.value = S.ec;
-  // Quiet zone
-  const qz = document.getElementById('qz-slider');
-  if (qz) { qz.value = S.qz; }
-  const qzv = document.getElementById('qz-val');
-  if (qzv) qzv.textContent = S.qz + ' mod';
-  // Checkboxes
-  const setBool = (id, v) => { const el = document.getElementById(id); if (el) el.checked = v; };
-  setBool('scan-opt', S.scanOpt); setBool('transparent', S.transparent);
-  setBool('use-grad', S.gradient); setBool('custom-marker', S.customMarker);
-  setBool('custom-ef', S.customEF); setBool('custom-ei', S.customEI);
-  setBool('logo-rmbg', S.logoRemoveBG); setBool('flip-h', S.flipH);
-  setBool('flip-v', S.flipV); setBool('invert-c', S.invert);
-  setBool('use-shadow', S.shadow);
-  // Sub-panels
-  const show = (id, cond) => { const el = document.getElementById(id); if (el) el.style.display = cond ? 'block' : 'none'; };
-  show('grad-opts', S.gradient); show('marker-opts', S.customMarker);
-  show('ef-opts', S.customEF);   show('ei-opts', S.customEI);
-  show('shadow-opts', S.shadow);
-  // Sliders
-  const setSlider = (id, vid, val, sfx) => {
-    const el = document.getElementById(id); if (el) el.value = val;
-    const vl = document.getElementById(vid); if (vl) vl.textContent = val + sfx;
-  };
-  setSlider('logo-size',   'ls-val',  S.logoSize,   '%');
-  setSlider('logo-br',     'lbr-val', S.logoBR,     '%');
-  setSlider('logo-pad',    'lp-val',  S.logoPad,    'px');
-  setSlider('frame-ts',    'fts-v',   S.frameTSize, '%');
-  setSlider('shadow-blur', 'sb-v',    S.shadowBlur, 'px');
-  setSlider('grad-angle',  'ga-val',  S.gAngle,     '°');
-  // Selects
-  const setSel = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  setSel('grad-type', S.gType); setSel('qr-rotation', S.rotation); setSel('qr-filter', S.filter);
-  // Text inputs
-  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  setVal('frame-label', S.frameLabel); setVal('frame-font', S.frameFont);
-  // Re-render visual grids
-  renderDesignGrid();
-  renderEyeFrameGrid();
-  renderEyeInnerGrid();
-  renderFrameGrids();
-  renderLogoGrid();
-}
-
-// =========================================================
-// MODE / CARD / TAB SWITCHING
-// =========================================================
-
-function switchMode(mode, btn) {
-  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  const ids = { gen:'mode-gen', scan:'mode-scan', batch:'mode-batch', hist:'mode-hist' };
-  Object.entries(ids).forEach(([key, id]) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.style.display = key === mode ? 'flex' : 'none';
-  });
-  if (mode === 'hist') renderHistory();
-}
-
-function toggleCard(header) {
-  header.classList.toggle('open');
-  const body = header.nextElementSibling;
-  if (body) body.classList.toggle('hidden');
-}
-
-function switchCTab(i, btn) {
-  document.querySelectorAll('.ctab').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.csub').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  const panel = document.getElementById('ctab-' + i);
-  if (panel) panel.classList.add('active');
-}
-
-function switchStab(group, i, btn) {
-  btn.parentElement.querySelectorAll('.stab').forEach(s => s.classList.remove('active'));
-  btn.classList.add('active');
-  for (let j = 0; j < 5; j++) {
-    const p = document.getElementById(group + '-' + j);
-    if (p) p.classList.remove('active');
+// ── Crypto logo auto-update ───────────────────────────────
+function updateCryptoLogo() {
+  const coin = document.getElementById('f-coin')?.value;
+  if (coin === 'bitcoin' || coin === 'ethereum') {
+    S.logoKey = coin; S.logoSrc = null;
+    updateLogoPreview(); buildLogoGrid();
   }
-  const target = document.getElementById(group + '-' + i);
-  if (target) target.classList.add('active');
 }
 
-// =========================================================
-// MODALS + DROPDOWN
-// =========================================================
+// ── Sync all UI from state ────────────────────────────────
+function syncAllUI() {
+  const set = (id, val) => { const e = document.getElementById(id); if (e) { if (e.type === 'checkbox') e.checked = !!val; else e.value = val; } };
+  const sw  = (id, col) => { const e = document.getElementById(id); if (e) e.style.background = col; };
 
-function openModal(id)  { const el = document.getElementById(id); if (el) el.classList.add('open'); }
-function closeModal(id) { const el = document.getElementById(id); if (el) el.classList.remove('open'); }
-function openSaveModal() { openModal('save-modal'); setTimeout(() => { const inp = document.getElementById('save-name'); if (inp) inp.focus(); }, 180); }
+  set('qr-size', S.size); set('ec-level', S.ec); set('qz-slider', S.qz);
+  document.getElementById('qz-val') && (document.getElementById('qz-val').textContent = S.qz + ' mod');
+  set('scan-opt', S.scanOpt);
 
-document.addEventListener('click', (e) => {
-  if (e.target.classList.contains('modal-bg')) e.target.classList.remove('open');
-  if (!e.target.closest('.dl-wrap')) closeDLDropdown();
-});
+  set('fg-color', S.fgColor); set('fg-hex', S.fgColor); sw('fg-sw', S.fgColor);
+  set('bg-color', S.bgColor); set('bg-hex', S.bgColor); sw('bg-sw', S.bgColor);
+  set('transparent', S.transparent);
+  set('use-grad', S.gradient);
+  document.getElementById('grad-opts') && (document.getElementById('grad-opts').style.display = S.gradient ? 'block' : 'none');
+  set('gc1', S.gc1); set('gc1-hex', S.gc1); sw('gc1-sw', S.gc1);
+  set('gc2', S.gc2); set('gc2-hex', S.gc2); sw('gc2-sw', S.gc2);
+  set('grad-type', S.gType); set('grad-angle', S.gAngle);
+  document.getElementById('ga-val') && (document.getElementById('ga-val').textContent = S.gAngle + '°');
 
-function toggleDLDropdown() { document.getElementById('dl-dropdown').classList.toggle('open'); }
-function closeDLDropdown()  { const dd = document.getElementById('dl-dropdown'); if (dd) dd.classList.remove('open'); }
+  set('custom-marker', S.customMarker);
+  document.getElementById('marker-opts') && (document.getElementById('marker-opts').style.display = S.customMarker ? 'block' : 'none');
+  set('mb-color', S.mbColor); set('mb-hex', S.mbColor); sw('mb-sw', S.mbColor);
+  set('mc-color', S.mcColor); set('mc-hex', S.mcColor); sw('mc-sw', S.mcColor);
+  set('custom-ef', S.customEF);
+  document.getElementById('ef-opts') && (document.getElementById('ef-opts').style.display = S.customEF ? 'block' : 'none');
+  set('ef-color', S.efColor); set('ef-hex', S.efColor); sw('ef-sw', S.efColor);
+  set('custom-ei', S.customEI);
+  document.getElementById('ei-opts') && (document.getElementById('ei-opts').style.display = S.customEI ? 'block' : 'none');
+  set('ei-color', S.eiColor); set('ei-hex', S.eiColor); sw('ei-sw', S.eiColor);
 
-// =========================================================
-// DARK MODE
-// =========================================================
+  set('logo-rmbg', S.logoRemoveBG); set('logo-size', S.logoSize);
+  document.getElementById('ls-val') && (document.getElementById('ls-val').textContent = S.logoSize + '%');
+  set('logo-br', S.logoBR);
+  document.getElementById('lbr-val') && (document.getElementById('lbr-val').textContent = S.logoBR + '%');
+  set('logo-pad', S.logoPad);
+  document.getElementById('lp-val') && (document.getElementById('lp-val').textContent = S.logoPad + 'px');
+  set('lpc-color', S.logoPadColor); set('lpc-hex', S.logoPadColor); sw('lpc-sw', S.logoPadColor);
 
-function toggleDark() {
-  const html = document.documentElement;
-  const isDark = html.dataset.theme === 'dark';
-  html.dataset.theme = isDark ? 'light' : 'dark';
-  const icon = document.getElementById('dark-icon');
-  if (icon) icon.className = isDark ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-  try { localStorage.setItem('qr_theme', html.dataset.theme); } catch (e) {}
+  set('frame-label', S.frameLabel); set('frame-font', S.frameFont); set('frame-ts', S.frameTSize);
+  document.getElementById('fts-v') && (document.getElementById('fts-v').textContent = S.frameTSize + '%');
+  set('flc-color', S.frameLabelColor); set('flc-hex', S.frameLabelColor); sw('flc-sw', S.frameLabelColor);
+  set('fc-color', S.frameColor); set('fc-hex', S.frameColor); sw('fc-sw', S.frameColor);
+  set('fc2-color', S.frameColor); set('fc2-hex', S.frameColor); sw('fc2-sw', S.frameColor);
+
+  set('qr-rotation', S.rotation); set('qr-filter', S.filter);
+  set('flip-h', S.flipH); set('flip-v', S.flipV); set('invert-c', S.invert);
+  set('use-shadow', S.shadow);
+  document.getElementById('shadow-opts') && (document.getElementById('shadow-opts').style.display = S.shadow ? 'block' : 'none');
+  set('sc-color', S.shadowColor); set('sc-hex', S.shadowColor); sw('sc-sw', S.shadowColor);
+  set('shadow-blur', S.shadowBlur);
+  document.getElementById('sb-v') && (document.getElementById('sb-v').textContent = S.shadowBlur + 'px');
+
+  buildTypeChips();
+  buildDesignGrids();
+  buildLogoGrid();
+  updateLogoPreview();
 }
 
-// =========================================================
-// MISC HELPERS
-// =========================================================
-
+// ── Size helpers ──────────────────────────────────────────
 function adjSize(delta) {
-  const inp = document.getElementById('qr-size');
-  S.size = Math.min(2000, Math.max(100, (parseInt(inp.value) || 600) + delta));
-  inp.value = S.size;
+  S.size = Math.max(100, Math.min(2000, (S.size || 600) + delta));
+  const el = document.getElementById('qr-size'); if (el) el.value = S.size;
   schedRender();
 }
-function setSize(v) {
-  S.size = v;
-  const inp = document.getElementById('qr-size');
-  if (inp) inp.value = v;
+function setSize(s) {
+  S.size = s; const el = document.getElementById('qr-size'); if (el) el.value = s;
   schedRender();
 }
+
+// ── Modals ────────────────────────────────────────────────
+function openModal(id) { const m = document.getElementById(id); if (m) m.classList.add('active'); }
+function closeModal(id) { const m = document.getElementById(id); if (m) m.classList.remove('active'); }
+
+// ── Toggle password visibility ────────────────────────────
 function togglePw(id) {
-  const el = document.getElementById(id);
-  if (el) el.type = el.type === 'password' ? 'text' : 'password';
+  const el = document.getElementById(id); if (!el) return;
+  el.type = el.type === 'password' ? 'text' : 'password';
+  el.nextElementSibling?.querySelector('i')?.classList.toggle('fa-eye');
+  el.nextElementSibling?.querySelector('i')?.classList.toggle('fa-eye-slash');
 }
+
+// ── Toast notifications ────────────────────────────────────
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toasts'); if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  const icons = { success: 'fa-check-circle', error: 'fa-circle-xmark', warning: 'fa-triangle-exclamation', info: 'fa-circle-info' };
+  toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i><span>${escHtml(msg)}</span>`;
+  container.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('show'));
+  setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 350); }, 3000);
+}
+
+// ── Dark mode ─────────────────────────────────────────────
+function toggleDark() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('theme', isDark ? 'light' : 'dark');
+  const icon = document.getElementById('dark-icon');
+  if (icon) { icon.className = isDark ? 'fa-solid fa-moon' : 'fa-solid fa-sun'; }
+}
+
+// ── Clipboard ─────────────────────────────────────────────
+async function copyToClipboard() {
+  const canvas = document.getElementById('qr-canvas');
+  if (!canvas || canvas.style.display === 'none') { showToast('Generate a QR code first', 'warning'); return; }
+  try {
+    canvas.toBlob(async blob => {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      showToast('QR copied to clipboard!', 'success');
+    });
+  } catch { showToast('Copy not supported in this browser', 'error'); }
+}
+
+// ── Share ─────────────────────────────────────────────────
+async function shareQR() {
+  const canvas = document.getElementById('qr-canvas');
+  if (!canvas || canvas.style.display === 'none') { showToast('Generate a QR code first', 'warning'); return; }
+  if (!navigator.share) { showToast('Share not supported in this browser', 'warning'); return; }
+  canvas.toBlob(async blob => {
+    const file = new File([blob], 'qr-code.png', { type: 'image/png' });
+    try { await navigator.share({ title: 'QR Code', files: [file] }); } catch {}
+  });
+}
+
+// ── Location helper ───────────────────────────────────────
 function useMyLocation() {
   if (!navigator.geolocation) { showToast('Geolocation not supported', 'error'); return; }
+  showToast('Getting location...', 'info');
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const lat = document.getElementById('f-lat');
-      const lng = document.getElementById('f-lng');
+    pos => {
+      const lat = document.getElementById('f-lat'), lng = document.getElementById('f-lng');
       if (lat) lat.value = pos.coords.latitude.toFixed(6);
       if (lng) lng.value = pos.coords.longitude.toFixed(6);
-      schedRender();
-      showToast('Location detected!', 'success');
+      schedRender(); showToast('Location set!', 'success');
     },
-    (err) => showToast('Location error: ' + err.message, 'error')
+    () => showToast('Could not get location', 'error')
   );
 }
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+// ── Download dropdown ─────────────────────────────────────
+function toggleDLDropdown() {
+  const dd = document.getElementById('dl-dropdown');
+  if (dd) dd.classList.toggle('open');
 }
-
-// =========================================================
-// TOASTS
-// =========================================================
-
-function showToast(msg, type = 'info', dur = 3000) {
-  const icons = { success:'fa-circle-check', error:'fa-circle-xmark', warning:'fa-triangle-exclamation', info:'fa-circle-info' };
-  const t = document.createElement('div');
-  t.className = `toast t-${type}`;
-  t.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i>${escHtml(msg)}`;
-  document.getElementById('toasts').appendChild(t);
-  requestAnimationFrame(() => t.classList.add('show'));
-  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 350); }, dur);
-}
-
-// =========================================================
-// HISTORY
-// =========================================================
-
-function saveHistory(data) {
-  if (!data) return;
-  const canvas = document.getElementById('qr-canvas');
-  let thumb = '';
-  if (canvas && canvas.style.display !== 'none') {
-    try {
-      const tmp = document.createElement('canvas');
-      tmp.width = 64; tmp.height = 64;
-      tmp.getContext('2d').drawImage(canvas, 0, 0, 64, 64);
-      thumb = tmp.toDataURL();
-    } catch (e) {}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.dl-wrap')) {
+    document.getElementById('dl-dropdown')?.classList.remove('open');
   }
-  let hist = getHistory();
-  if (hist.length && hist[0].data === data) return;
-  hist.unshift({ id: Date.now().toString(), data, type: S.activeType, thumb, date: new Date().toLocaleString() });
-  hist = hist.slice(0, 50);
-  try { localStorage.setItem('qr_history', JSON.stringify(hist)); } catch (e) {}
-}
+});
 
-function getHistory() {
-  try { return JSON.parse(localStorage.getItem('qr_history') || '[]'); } catch (e) { return []; }
-}
-
-function clearHistory() {
-  if (!confirm('Clear all QR history?')) return;
-  try { localStorage.removeItem('qr_history'); } catch (e) {}
-  renderHistory();
-  showToast('History cleared', 'info');
-}
-
-function renderHistory(filter = '') {
-  const container = document.getElementById('hist-list');
+// ── Settings page render ──────────────────────────────────
+function renderSettingsPage() {
+  const container = document.getElementById('settings-content');
   if (!container) return;
-  let hist = getHistory();
-  if (filter) hist = hist.filter(h => h.data.toLowerCase().includes(filter.toLowerCase()));
-  if (!hist.length) {
-    container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-clock-rotate-left"></i>No history yet</div>`;
-    return;
+  container.innerHTML = `
+    <div class="settings-section">
+      <h3 class="settings-h">Appearance</h3>
+      <div class="settings-row">
+        <div class="settings-row-info"><span>Dark Mode</span><p>Switch between light and dark theme</p></div>
+        <label class="toggle"><input type="checkbox" id="st-dark" onchange="toggleDark()" ${document.documentElement.getAttribute('data-theme')==='dark'?'checked':''}><span class="toggle-slider"></span></label>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-info"><span>Default Size</span><p>Default QR output size in pixels</p></div>
+        <select class="select" style="width:120px" onchange="S.size=parseInt(this.value)">
+          <option value="512" ${S.size===512?'selected':''}>512px</option>
+          <option value="600" ${S.size===600?'selected':''}>600px</option>
+          <option value="1024" ${S.size===1024?'selected':''}>1024px</option>
+          <option value="2048" ${S.size===2048?'selected':''}>2048px</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-info"><span>Default Error Correction</span><p>Higher = more scannable with logos</p></div>
+        <select class="select" style="width:140px" onchange="S.ec=this.value">
+          <option value="L" ${S.ec==='L'?'selected':''}>L – Low</option>
+          <option value="M" ${S.ec==='M'?'selected':''}>M – Medium</option>
+          <option value="Q" ${S.ec==='Q'?'selected':''}>Q – Quartile</option>
+          <option value="H" ${S.ec==='H'?'selected':''}>H – Best</option>
+        </select>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h3 class="settings-h">Data & Storage</h3>
+      <div class="settings-row">
+        <div class="settings-row-info"><span>Projects</span><p>${getAllProjects().length} QR projects saved</p></div>
+        <button class="btn btn-danger btn-sm" onclick="clearAllProjects()"><i class="fa-solid fa-trash"></i> Clear All</button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-info"><span>Templates</span><p>${getUserTemplates().length} user templates saved</p></div>
+        <button class="btn btn-danger btn-sm" onclick="clearUserTemplates()"><i class="fa-solid fa-trash"></i> Clear All</button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-info"><span>Export Settings</span><p>Download your preferences as JSON</p></div>
+        <button class="btn btn-outline btn-sm" onclick="exportSettings()"><i class="fa-solid fa-file-export"></i> Export</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h3 class="settings-h">About QR Studio Pro</h3>
+      <div class="about-grid">
+        <div class="about-item"><span class="about-label">Version</span><span class="about-val">2.0.0</span></div>
+        <div class="about-item"><span class="about-label">Build</span><span class="about-val">2025</span></div>
+        <div class="about-item"><span class="about-label">Author</span><span class="about-val">Muhtasim Rahman</span></div>
+        <div class="about-item"><span class="about-label">License</span><span class="about-val">MIT</span></div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" onclick="openDocsModal()"><i class="fa-solid fa-book"></i> Documentation</button>
+        <a class="btn btn-ghost btn-sm" href="https://github.com/muhtasim-rahman" target="_blank"><i class="fa-brands fa-github"></i> GitHub</a>
+      </div>
+    </div>`;
+}
+
+function clearUserTemplates() {
+  if (!confirm('Delete all your saved templates?')) return;
+  localStorage.removeItem(TEMPLATES_KEY);
+  renderSettingsPage(); showToast('Templates cleared', 'info');
+}
+
+function exportSettings() {
+  const data = JSON.stringify({ state: S, templates: getUserTemplates() }, null, 2);
+  const a = document.createElement('a'); a.href = 'data:application/json,' + encodeURIComponent(data);
+  a.download = 'qrstudio-settings.json'; a.click();
+}
+
+// ── Documentation modal ───────────────────────────────────
+async function openDocsModal() {
+  openModal('docs-modal');
+  const content = document.getElementById('docs-content');
+  if (!content) return;
+  content.innerHTML = '<div class="docs-loading"><div class="spinner"></div> Loading documentation...</div>';
+  try {
+    const res = await fetch('README.md');
+    if (!res.ok) throw new Error('not found');
+    const md  = await res.text();
+    content.innerHTML = markdownToHtml(md);
+  } catch {
+    content.innerHTML = `<div class="docs-error">
+      <p>Could not load README.md from local files.</p>
+      <a href="https://github.com/muhtasim-rahman/UFMT-SSC26" target="_blank" class="btn btn-outline">
+        <i class="fa-brands fa-github"></i> View on GitHub
+      </a>
+    </div>`;
   }
-  container.innerHTML = hist.map(h => `
-    <div class="h-item">
-      <canvas class="h-thumb" id="hc-${h.id}" width="56" height="56"></canvas>
-      <div class="h-info">
-        <div class="h-data">${escHtml(h.data)}</div>
-        <div class="h-meta"><span class="badge badge-blue">${escHtml(h.type)}</span> &nbsp;${escHtml(h.date)}</div>
-      </div>
-      <div class="h-acts">
-        <button class="btn btn-primary btn-sm" onclick="reopenHistory('${h.id}')" title="Edit">
-          <i class="fa-solid fa-pen"></i>
-        </button>
-        <button class="btn btn-ghost btn-sm" onclick="dlHistoryItem('${h.id}')" title="Download">
-          <i class="fa-solid fa-download"></i>
-        </button>
-      </div>
-    </div>`).join('');
-  hist.forEach(h => {
-    if (!h.thumb) return;
-    const c = document.getElementById('hc-' + h.id);
-    if (!c) return;
-    const img = new Image();
-    img.onload = () => c.getContext('2d').drawImage(img, 0, 0, 56, 56);
-    img.src = h.thumb;
-  });
 }
 
-function reopenHistory(id) {
-  const h = getHistory().find(h => h.id === id);
-  if (!h) return;
-  switchMode('gen', document.querySelector('.nav-tab[data-mode="gen"]'));
-  S.activeType = h.type;
-  renderTypeTabs();
-  renderForm(h.type);
-  setTimeout(() => {
-    const first = document.querySelector('.qr-input:not([type="checkbox"]):not(select)');
-    if (first) first.value = h.data;
-    schedRender();
-  }, 100);
+// ── Minimal Markdown → HTML ────────────────────────────────
+function markdownToHtml(md) {
+  return md
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/^#{6}\s(.+)$/gm,'<h6>$1</h6>')
+    .replace(/^#{5}\s(.+)$/gm,'<h5>$1</h5>')
+    .replace(/^#{4}\s(.+)$/gm,'<h4>$1</h4>')
+    .replace(/^###\s(.+)$/gm,'<h3>$1</h3>')
+    .replace(/^##\s(.+)$/gm,'<h2>$1</h2>')
+    .replace(/^#\s(.+)$/gm,'<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/```[\s\S]*?```/g, m => `<pre><code>${m.slice(3,-3)}</code></pre>`)
+    .replace(/^\-\s(.+)$/gm,'<li>$1</li>')
+    .replace(/(<li>.*<\/li>)/gs,'<ul>$1</ul>')
+    .replace(/^\d+\.\s(.+)$/gm,'<li>$1</li>')
+    .replace(/\[(.+?)\]\((.+?)\)/g,'<a href="$2" target="_blank">$1</a>')
+    .replace(/\n\n/g,'</p><p>')
+    .replace(/^(?!<[hupola])/gm, '<p>')
+    .replace(/(?<![>])$/gm, '</p>');
 }
 
-function dlHistoryItem(id) {
-  const h = getHistory().find(h => h.id === id);
-  if (!h || !h.thumb) return;
-  const link = document.createElement('a');
-  link.download = `qr-${id}.png`;
-  link.href = h.thumb;
-  link.click();
-}
+// ── Batch view placeholder ────────────────────────────────
+function renderBatchView() { /* handled by batch.js */ }
+
+// ── Tip tooltips ──────────────────────────────────────────
+document.addEventListener('mouseover', e => {
+  const tip = e.target.closest('[data-tip]');
+  if (!tip) return;
+  let tooltip = document.getElementById('active-tooltip');
+  if (!tooltip) { tooltip = document.createElement('div'); tooltip.id = 'active-tooltip'; tooltip.className = 'tooltip-popup'; document.body.appendChild(tooltip); }
+  tooltip.textContent = tip.dataset.tip;
+  tooltip.style.display = 'block';
+  const r = tip.getBoundingClientRect();
+  tooltip.style.left = r.left + 'px';
+  tooltip.style.top  = (r.top - tooltip.offsetHeight - 6 + window.scrollY) + 'px';
+});
+document.addEventListener('mouseout', e => {
+  if (!e.target.closest('[data-tip]')) { const t = document.getElementById('active-tooltip'); if (t) t.style.display = 'none'; }
+});

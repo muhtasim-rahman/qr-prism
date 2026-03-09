@@ -1,137 +1,65 @@
 // =========================================================
-// APP.JS — Initialization, keyboard shortcuts, boot
+// js/app.js — Application bootstrap V2.0
 // =========================================================
 
-// ── Boot on DOM ready ────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  initTheme();
-  initApp();
-  initKeyboardShortcuts();
-  loadJSZip();
-});
 
-// ── Restore saved theme ──────────────────────────────────
-function initTheme() {
-  try {
-    const saved = localStorage.getItem('qr_theme');
-    if (saved) {
-      document.documentElement.dataset.theme = saved;
-      const icon = document.getElementById('dark-icon');
-      if (icon) icon.className = saved === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-    }
-  } catch (e) {}
-}
+  // ── Theme init ─────────────────────────────────────────
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  const icon = document.getElementById('dark-icon');
+  if (icon) icon.className = savedTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
 
-// ── Main app initialization ──────────────────────────────
-function initApp() {
-  // Render all static UI components
-  renderTypeTabs();
-  renderForm(S.activeType);
-  renderDesignGrid();
-  renderEyeFrameGrid();
-  renderEyeInnerGrid();
-  renderFrameGrids();
-  renderLogoGrid();
-  renderPresetTemplates();
-  renderSavedTemplates();
+  // ── Sidebar state ───────────────────────────────────────
+  const savedCollapsed = localStorage.getItem('sidebar_collapsed') === '1';
+  if (savedCollapsed) {
+    document.getElementById('app-sidebar')?.classList.add('collapsed');
+    document.getElementById('main-content')?.classList.add('sidebar-collapsed');
+    _sidebarCollapsed = savedCollapsed;
+  }
 
-  // Set initial mode display
-  document.getElementById('mode-gen').style.display   = 'flex';
-  document.getElementById('mode-scan').style.display  = 'none';
-  document.getElementById('mode-batch').style.display = 'none';
-  document.getElementById('mode-hist').style.display  = 'none';
+  // ── Build all UI ────────────────────────────────────────
+  buildTypeChips();
+  switchQRType('url', false);
+  buildDesignGrids();
+  buildLogoGrid();
+  renderPremiumTemplates();
+  renderUserTemplates();
+  updateProjectsBadge();
 
-  // Trigger first render with empty state (shows empty state graphic)
-  renderQR();
-
-  console.log('%c QR Studio Pro loaded ✓ ', 'background:#2D9CDB;color:#fff;font-weight:bold;border-radius:4px;padding:2px 8px;');
-}
-
-// ── Lazy-load JSZip for batch downloads ──────────────────
-function loadJSZip() {
-  if (typeof JSZip !== 'undefined') return;
-  const script = document.createElement('script');
-  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-  script.async = true;
-  document.head.appendChild(script);
-}
-
-// ── Keyboard Shortcuts ───────────────────────────────────
-function initKeyboardShortcuts() {
-  document.addEventListener('keydown', (e) => {
-    // Skip if user is typing in an input/textarea
-    const tag = e.target.tagName;
-    const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable;
-
-    // Ctrl / Cmd combos — always active
+  // ── Keyboard shortcuts ──────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.target.matches('input,textarea,select')) return;
     if (e.ctrlKey || e.metaKey) {
-      switch (e.key.toLowerCase()) {
-        case 'd':
-          e.preventDefault();
-          downloadQR('png');
-          break;
-        case 's':
-          e.preventDefault();
-          openSaveModal();
-          break;
-        case 'z':
-          e.preventDefault();
-          undo();
-          break;
-        case 'y':
-          e.preventDefault();
-          redo();
-          break;
-        case 'c':
-          // Only intercept when not in an input field
-          if (!isEditable) {
-            e.preventDefault();
-            copyToClipboard();
-          }
-          break;
+      switch (e.key) {
+        case 'd': e.preventDefault(); downloadQR('png'); break;
+        case 's': e.preventDefault(); openSaveTemplateModal(); break;
+        case 'c': e.preventDefault(); copyToClipboard(); break;
+        case 'z': e.preventDefault(); undo(); break;
+        case 'y': e.preventDefault(); redo(); break;
       }
-      return;
-    }
-
-    // Single-key shortcuts — only when NOT in an input
-    if (isEditable) return;
-
-    switch (e.key) {
-      case 'd':
-      case 'D':
-        toggleDark();
-        break;
-      case '?':
-        openModal('kb-modal');
-        break;
-      case 'Escape':
-        // Close any open modal
-        document.querySelectorAll('.modal-bg.open').forEach(m => m.classList.remove('open'));
-        closeDLDropdown();
-        break;
-      case '1':
-        switchMode('gen',   document.querySelector('.nav-tab[data-mode="gen"]'));
-        break;
-      case '2':
-        switchMode('scan',  document.querySelector('.nav-tab[data-mode="scan"]'));
-        break;
-      case '3':
-        switchMode('batch', document.querySelector('.nav-tab[data-mode="batch"]'));
-        break;
-      case '4':
-        switchMode('hist',  document.querySelector('.nav-tab[data-mode="hist"]'));
-        break;
+    } else {
+      switch (e.key) {
+        case 'd': toggleDark(); break;
+        case '?': openModal('kb-modal'); break;
+      }
     }
   });
-}
 
-// ── Enter key submits Save Template modal ────────────────
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    const modal = document.getElementById('save-modal');
-    if (modal && modal.classList.contains('open')) {
-      e.preventDefault();
-      saveTemplate();
-    }
+  // ── Sidebar overlay click ───────────────────────────────
+  document.getElementById('sidebar-overlay')?.addEventListener('click', closeSidebar);
+
+  // ── Close modals on background click ───────────────────
+  document.querySelectorAll('.modal-bg').forEach(bg => {
+    bg.addEventListener('click', e => { if (e.target === bg) bg.classList.remove('active'); });
+  });
+
+  // ── Auto-render QR on first load if URL param exists ───
+  const urlParam = new URLSearchParams(window.location.search).get('url');
+  if (urlParam) {
+    const f = document.getElementById('f-url');
+    if (f) { f.value = urlParam; schedRender(); }
   }
+
+  console.log('QR Studio Pro V2.0 initialized ✓');
 });
