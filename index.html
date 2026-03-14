@@ -6,7 +6,7 @@
   <title>QR Prism – Advanced QR Code Generator</title>
 
   <!-- SEO Meta -->
-  <meta name="description" content="QR Prism — Professional, free QR code generator with custom patterns, logos, gradients, frames, and templates. Works offline as a PWA.">
+  <meta name="description" content="QR Prism — Professional, free QR code generator with custom patterns, logos, gradients, frames, and templates. 16 QR types, works offline as a PWA.">
   <meta name="author" content="Muhtasim Rahman (Turzo)">
   <meta name="keywords" content="QR code generator, custom QR, QR scanner, free QR, offline QR, PWA, QR Prism, Bangladesh">
   <meta name="robots" content="index, follow">
@@ -15,16 +15,16 @@
   <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="QR Prism – Advanced QR Code Generator">
-  <meta property="og:description" content="Professional free QR code generator with custom patterns, logos, frames and templates. Works offline.">
-  <meta property="og:image" content="./preview.jpg">
+  <meta property="og:description" content="Professional free QR code generator with 16 types, custom patterns, logos, frames and templates. Works fully offline.">
+  <meta property="og:image" content="./assets/preview.jpg">
   <meta property="og:url" content="https://muhtasim-rahman.github.io/qr-prism/">
   <meta property="og:site_name" content="QR Prism">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="QR Prism – Advanced QR Code Generator">
-  <meta name="twitter:description" content="Professional free QR code generator. Works offline.">
-  <meta name="twitter:image" content="./preview.jpg">
+  <meta name="twitter:description" content="Professional free QR code generator. 16 types, custom patterns, offline PWA.">
+  <meta name="twitter:image" content="./assets/preview.jpg">
 
   <!-- PWA -->
   <link rel="manifest" href="./manifest.json">
@@ -33,6 +33,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="QR Prism">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="icon" href="./icons/icon-192.png">
 
   <!-- CDN Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -72,15 +73,25 @@
     <a class="sidebar-logo" href="#" onclick="switchMode('gen'); return false;">
       <div class="sidebar-logo-icon">
         <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="20" y="20" width="60" height="60" rx="12" stroke="currentColor" stroke-width="10"/>
-          <rect x="38" y="38" width="24" height="24" rx="4" fill="currentColor"/>
-          <path d="M 70 70 L 88 88" stroke="#818CF8" stroke-width="12" stroke-linecap="round"/>
+          <rect x="8" y="8" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
+          <rect x="17" y="17" width="17" height="17" rx="3" fill="currentColor"/>
+          <rect x="57" y="8" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
+          <rect x="66" y="17" width="17" height="17" rx="3" fill="currentColor"/>
+          <rect x="8" y="57" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
+          <rect x="17" y="66" width="17" height="17" rx="3" fill="currentColor"/>
+          <rect x="57" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
+          <rect x="72" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
+          <rect x="57" y="72" width="9" height="9" rx="2" fill="#818CF8"/>
+          <rect x="72" y="72" width="9" height="9" rx="2" fill="#C084FC"/>
+          <rect x="83" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
+          <rect x="83" y="83" width="9" height="9" rx="2" fill="#818CF8"/>
+          <rect x="57" y="83" width="9" height="9" rx="2" fill="#818CF8"/>
         </svg>
       </div>
       <div class="sidebar-logo-text">
         <span class="logo-qr">QR</span><span class="logo-prism">Prism</span>
       </div>
-      <span class="sidebar-version">v2.5</span>
+      <span class="sidebar-version">v2.7</span>
     </a>
 
     <!-- Profile -->
@@ -164,14 +175,21 @@
     <a class="topnav-logo" href="#" onclick="switchMode('gen'); return false;">
       <div class="topnav-logo-icon">
         <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="20" y="20" width="60" height="60" rx="12" stroke="currentColor" stroke-width="10"/>
-          <rect x="38" y="38" width="24" height="24" rx="4" fill="currentColor"/>
-          <path d="M 70 70 L 88 88" stroke="#818CF8" stroke-width="12" stroke-linecap="round"/>
+          <rect x="8" y="8" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
+          <rect x="17" y="17" width="17" height="17" rx="3" fill="currentColor"/>
+          <rect x="57" y="8" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
+          <rect x="66" y="17" width="17" height="17" rx="3" fill="currentColor"/>
+          <rect x="8" y="57" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
+          <rect x="17" y="66" width="17" height="17" rx="3" fill="currentColor"/>
+          <rect x="57" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
+          <rect x="72" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
+          <rect x="57" y="72" width="9" height="9" rx="2" fill="#818CF8"/>
+          <rect x="83" y="83" width="9" height="9" rx="2" fill="#818CF8"/>
         </svg>
       </div>
       <span class="logo-qr">QR</span><span class="logo-prism">Prism</span>
     </a>
-    <div class="topnav-tabs">
+    <div class="topnav-tabs" id="topnav-tabs">
       <button class="topnav-tab active" data-mode="gen"      onclick="switchMode('gen')"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate</button>
       <button class="topnav-tab"        data-mode="batch"    onclick="switchMode('batch')"><i class="fa-solid fa-layer-group"></i> Batch</button>
       <button class="topnav-tab"        data-mode="scan"     onclick="switchMode('scan')"><i class="fa-solid fa-camera-viewfinder"></i> Scan</button>
@@ -191,9 +209,16 @@
     <a class="mobile-header-logo" href="#" onclick="switchMode('gen'); return false;">
       <div class="mobile-header-logo-icon">
         <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="20" y="20" width="60" height="60" rx="12" stroke="currentColor" stroke-width="10"/>
-          <rect x="38" y="38" width="24" height="24" rx="4" fill="currentColor"/>
-          <path d="M 70 70 L 88 88" stroke="#818CF8" stroke-width="12" stroke-linecap="round"/>
+          <rect x="8" y="8" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
+          <rect x="17" y="17" width="17" height="17" rx="3" fill="currentColor"/>
+          <rect x="57" y="8" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
+          <rect x="66" y="17" width="17" height="17" rx="3" fill="currentColor"/>
+          <rect x="8" y="57" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
+          <rect x="17" y="66" width="17" height="17" rx="3" fill="currentColor"/>
+          <rect x="57" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
+          <rect x="72" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
+          <rect x="57" y="72" width="9" height="9" rx="2" fill="#C084FC"/>
+          <rect x="83" y="83" width="9" height="9" rx="2" fill="#818CF8"/>
         </svg>
       </div>
       <span class="logo-qr">QR</span><span class="logo-prism">Prism</span>
@@ -230,22 +255,22 @@
           <div class="qr-card" id="qr-wrap">
             <div class="qr-empty" id="qr-empty">
               <div class="qr-empty-icon">
-                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="60" height="60" opacity=".3">
-                  <rect x="5" y="5" width="38" height="38" rx="6" stroke="currentColor" stroke-width="8"/>
-                  <rect x="15" y="15" width="18" height="18" rx="2" fill="currentColor"/>
-                  <rect x="57" y="5" width="38" height="38" rx="6" stroke="currentColor" stroke-width="8"/>
-                  <rect x="67" y="15" width="18" height="18" rx="2" fill="currentColor"/>
-                  <rect x="5" y="57" width="38" height="38" rx="6" stroke="currentColor" stroke-width="8"/>
-                  <rect x="15" y="67" width="18" height="18" rx="2" fill="currentColor"/>
-                  <rect x="57" y="57" width="8" height="8" fill="currentColor"/>
-                  <rect x="73" y="57" width="8" height="8" fill="currentColor"/>
-                  <rect x="57" y="73" width="8" height="8" fill="currentColor"/>
-                  <rect x="73" y="73" width="8" height="8" fill="currentColor"/>
-                  <rect x="89" y="57" width="8" height="8" fill="currentColor"/>
-                  <rect x="89" y="73" width="8" height="8" fill="currentColor"/>
-                  <rect x="57" y="89" width="8" height="8" fill="currentColor"/>
-                  <rect x="73" y="89" width="8" height="8" fill="currentColor"/>
-                  <rect x="89" y="89" width="8" height="8" fill="currentColor"/>
+                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="64" height="64" opacity=".25">
+                  <rect x="5" y="5" width="38" height="38" rx="6" stroke="currentColor" stroke-width="7"/>
+                  <rect x="14" y="14" width="20" height="20" rx="3" fill="currentColor"/>
+                  <rect x="57" y="5" width="38" height="38" rx="6" stroke="currentColor" stroke-width="7"/>
+                  <rect x="66" y="14" width="20" height="20" rx="3" fill="currentColor"/>
+                  <rect x="5" y="57" width="38" height="38" rx="6" stroke="currentColor" stroke-width="7"/>
+                  <rect x="14" y="66" width="20" height="20" rx="3" fill="currentColor"/>
+                  <rect x="57" y="57" width="9" height="9" fill="currentColor"/>
+                  <rect x="73" y="57" width="9" height="9" fill="currentColor"/>
+                  <rect x="57" y="73" width="9" height="9" fill="currentColor"/>
+                  <rect x="73" y="73" width="9" height="9" fill="currentColor"/>
+                  <rect x="86" y="57" width="9" height="9" fill="currentColor"/>
+                  <rect x="86" y="73" width="9" height="9" fill="currentColor"/>
+                  <rect x="57" y="86" width="9" height="9" fill="currentColor"/>
+                  <rect x="73" y="86" width="9" height="9" fill="currentColor"/>
+                  <rect x="86" y="86" width="9" height="9" fill="currentColor"/>
                 </svg>
               </div>
               <p>Enter content to generate QR code</p>
@@ -286,8 +311,9 @@
                   <i class="fa-solid fa-download"></i> Download PNG
                   <span class="tooltip-pop">Download as PNG (Ctrl+D)</span>
                 </button>
-                <button class="dl-chevron" onclick="toggleDLDropdown()">
+                <button class="dl-chevron tooltip-wrap" onclick="toggleDLDropdown()">
                   <i class="fa-solid fa-chevron-down"></i>
+                  <span class="tooltip-pop">More formats</span>
                 </button>
               </div>
               <div class="dl-dropdown" id="dl-dropdown">
@@ -312,11 +338,27 @@
               </button>
             </div>
             <div class="btn-row">
-              <button class="btn btn-ghost" onclick="shareQR()">
+              <button class="btn btn-ghost tooltip-wrap" onclick="shareQR()">
                 <i class="fa-solid fa-share-nodes"></i> Share
+                <span class="tooltip-pop">Share QR Code</span>
               </button>
-              <button class="btn btn-ghost" onclick="window.print()">
+              <button class="btn btn-ghost tooltip-wrap" onclick="window.print()">
                 <i class="fa-solid fa-print"></i> Print
+                <span class="tooltip-pop">Print QR Code</span>
+              </button>
+            </div>
+            <div class="undo-row">
+              <button class="undo-btn tooltip-wrap" id="undo-btn" onclick="undoQR()" disabled>
+                <i class="fa-solid fa-rotate-left"></i>
+                <span class="tooltip-pop">Undo (Ctrl+Z)</span>
+              </button>
+              <button class="undo-btn tooltip-wrap" id="redo-btn" onclick="redoQR()" disabled>
+                <i class="fa-solid fa-rotate-right"></i>
+                <span class="tooltip-pop">Redo (Ctrl+Y)</span>
+              </button>
+              <button class="btn btn-ghost btn-sm tooltip-wrap" onclick="openSaveTemplateModal()">
+                <i class="fa-solid fa-bookmark"></i> Template
+                <span class="tooltip-pop">Save as Template (Ctrl+S)</span>
               </button>
             </div>
             <div class="scan-help-wrap">
@@ -327,7 +369,7 @@
           </div>
         </div><!-- /preview-panel -->
 
-        <!-- EDITOR PANEL (bottom on mobile/tablet, left on PC) -->
+        <!-- EDITOR PANEL -->
         <div class="editor-panel" id="editor-panel">
 
           <!-- QR TYPE TABS -->
@@ -335,7 +377,7 @@
             <div class="type-tabs-wrap" id="type-tabs"><!-- JS renders --></div>
           </div>
 
-          <!-- TEMPLATES (expandable, before other options) -->
+          <!-- TEMPLATES (expandable) -->
           <div class="card accordion-card" id="templates-card">
             <button class="card-header" onclick="toggleAccordion(this)">
               <i class="fa-solid fa-layer-group ch-icon"></i>
@@ -357,7 +399,7 @@
             </div>
           </div>
 
-          <!-- INPUT FORM -->
+          <!-- INPUT FORM (always visible conceptually, but collapsible) -->
           <div class="card accordion-card" id="form-card">
             <button class="card-header open" onclick="toggleAccordion(this)">
               <i class="fa-solid fa-pencil ch-icon"></i>
@@ -371,12 +413,15 @@
 
           <!-- OPTIONS -->
           <div class="card accordion-card" id="options-card">
-            <button class="card-header open" onclick="toggleAccordion(this)">
+            <button class="card-header" onclick="toggleAccordion(this)">
               <i class="fa-solid fa-sliders ch-icon"></i>
               <span>Options</span>
+              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
+                <span class="tooltip-pop">Size, error correction, quiet zone settings</span>
+              </i>
               <i class="fa-solid fa-chevron-down arrow"></i>
             </button>
-            <div class="card-body">
+            <div class="card-body collapsed">
               <div class="opts-grid">
                 <div class="opts-col">
                   <div class="field-label">
@@ -392,6 +437,7 @@
                     <button class="num-btn" onclick="adjSize(50)">+</button>
                   </div>
                   <div class="size-chips">
+                    <button class="chip" onclick="setSize(300)">300</button>
                     <button class="chip" onclick="setSize(512)">512</button>
                     <button class="chip" onclick="setSize(1024)">1K</button>
                     <button class="chip" onclick="setSize(2048)">2K</button>
@@ -433,6 +479,9 @@
             <button class="card-header" onclick="toggleAccordion(this)">
               <i class="fa-solid fa-palette ch-icon"></i>
               <span>Colors</span>
+              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
+                <span class="tooltip-pop">Foreground, background, gradient, marker and eye colors</span>
+              </i>
               <i class="fa-solid fa-chevron-down arrow"></i>
             </button>
             <div class="card-body collapsed">
@@ -504,7 +553,10 @@
           <div class="card accordion-card" id="patterns-card">
             <button class="card-header" onclick="toggleAccordion(this)">
               <i class="fa-solid fa-grip ch-icon"></i>
-              <span>Patterns</span>
+              <span>Patterns & Eyes</span>
+              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
+                <span class="tooltip-pop">Dot design, eye frame, and eye inner shapes</span>
+              </i>
               <i class="fa-solid fa-chevron-down arrow"></i>
             </button>
             <div class="card-body collapsed">
@@ -524,6 +576,9 @@
             <button class="card-header" onclick="toggleAccordion(this)">
               <i class="fa-solid fa-image ch-icon"></i>
               <span>Logo</span>
+              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
+                <span class="tooltip-pop">Embed a logo or brand icon in the center of the QR</span>
+              </i>
               <i class="fa-solid fa-chevron-down arrow"></i>
             </button>
             <div class="card-body collapsed">
@@ -562,6 +617,9 @@
             <button class="card-header" onclick="toggleAccordion(this)">
               <i class="fa-regular fa-square ch-icon"></i>
               <span>Frame</span>
+              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
+                <span class="tooltip-pop">Add a decorative frame with optional label text</span>
+              </i>
               <i class="fa-solid fa-chevron-down arrow"></i>
             </button>
             <div class="card-body collapsed">
@@ -588,29 +646,14 @@
             </div>
           </div>
 
-          <!-- ANALYTICS -->
-          <div class="card accordion-card" id="analytics-card">
-            <button class="card-header" onclick="toggleAccordion(this)">
-              <i class="fa-solid fa-chart-bar ch-icon"></i>
-              <span>Analytics</span>
-              <i class="fa-solid fa-chevron-down arrow"></i>
-            </button>
-            <div class="card-body collapsed">
-              <div class="analytics-grid">
-                <div class="a-item"><div class="a-val" id="a-chars">—</div><div class="a-lbl">Characters</div></div>
-                <div class="a-item"><div class="a-val" id="a-version">—</div><div class="a-lbl">QR Version</div></div>
-                <div class="a-item"><div class="a-val" id="a-modules">—</div><div class="a-lbl">Modules</div></div>
-                <div class="a-item"><div class="a-val" id="a-scan" style="font-size:.82rem;">—</div><div class="a-lbl">Scanability</div></div>
-              </div>
-              <div id="warn-bar" class="warn-bar" style="display:none; margin-top:10px;"></div>
-            </div>
-          </div>
-
           <!-- ADVANCED -->
           <div class="card accordion-card" id="advanced-card">
             <button class="card-header" onclick="toggleAccordion(this)">
               <i class="fa-solid fa-gear ch-icon"></i>
               <span>Advanced</span>
+              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
+                <span class="tooltip-pop">Rotation, flip, filters, shadow effects</span>
+              </i>
               <i class="fa-solid fa-chevron-down arrow"></i>
             </button>
             <div class="card-body collapsed">
@@ -627,6 +670,15 @@
                 <div class="color-row"><span class="c-label">Shadow Color</span><div class="pickr-wrap" id="sc-pickr-wrap"></div></div>
                 <div class="slider-row"><span class="s-label">Blur</span><input type="range" class="range" id="shadow-blur" min="0" max="40" value="10" oninput="S.shadowBlur=parseInt(this.value); document.getElementById('sb-v').textContent=this.value+'px'; schedRender()"><span class="s-val" id="sb-v">10px</span></div>
               </div>
+              <div class="divider"></div>
+              <!-- Analytics -->
+              <div class="analytics-grid" id="adv-analytics" style="display:none;">
+                <div class="a-item"><div class="a-val" id="a-chars">—</div><div class="a-lbl">Characters</div></div>
+                <div class="a-item"><div class="a-val" id="a-version">—</div><div class="a-lbl">QR Version</div></div>
+                <div class="a-item"><div class="a-val" id="a-modules">—</div><div class="a-lbl">Modules</div></div>
+                <div class="a-item"><div class="a-val" id="a-scan" style="font-size:.78rem;">—</div><div class="a-lbl">Scanability</div></div>
+              </div>
+              <div id="warn-bar" class="warn-bar" style="display:none; margin-top:10px;"></div>
             </div>
           </div>
 
@@ -641,44 +693,43 @@
       <div class="scan-page">
         <div class="scanner-card" id="scanner-card">
           <div class="scanner-viewport" id="scanner-viewport">
-            <!-- Empty state -->
             <div class="scan-empty-state" id="scan-empty-state">
               <div class="scan-empty-icon">
                 <i class="fa-solid fa-camera-viewfinder"></i>
               </div>
               <p>Tap the button below to start scanning</p>
             </div>
-            <!-- Video feed -->
             <video id="scanner-video" playsinline autoplay muted></video>
-            <!-- Scan overlay -->
             <div class="scan-overlay" id="scan-overlay">
               <div class="scan-frame-corners">
                 <span></span><span></span><span></span><span></span>
               </div>
               <div class="scan-line" id="scan-line"></div>
             </div>
+            <!-- Floating controls over viewfinder -->
+            <div class="scan-float-controls">
+              <button class="scan-float-btn tooltip-wrap" id="flashlight-btn" onclick="toggleFlashlight()">
+                <i class="fa-solid fa-bolt"></i>
+                <span class="tooltip-pop">Toggle Flashlight</span>
+              </button>
+              <button class="scan-float-btn tooltip-wrap" onclick="document.getElementById('scan-file').click()">
+                <i class="fa-solid fa-image"></i>
+                <span class="tooltip-pop">Scan from Image</span>
+              </button>
+            </div>
           </div>
 
-          <!-- Controls -->
           <div class="scanner-controls">
-            <button class="scan-ctrl-btn tooltip-wrap" id="flashlight-btn" onclick="toggleFlashlight()">
-              <i class="fa-solid fa-bolt"></i>
-              <span class="tooltip-pop">Flashlight</span>
-            </button>
             <button class="scan-main-btn" id="scan-main-btn" onclick="toggleScanner()">
               <div class="scan-btn-ring">
                 <i class="fa-solid fa-camera" id="scan-main-icon"></i>
               </div>
+              <span id="scan-btn-label">Start Scanner</span>
             </button>
-            <button class="scan-ctrl-btn tooltip-wrap" onclick="document.getElementById('scan-file').click()">
-              <i class="fa-solid fa-image"></i>
-              <span class="tooltip-pop">Upload Image</span>
-            </button>
-            <input type="file" id="scan-file" accept="image/*" style="display:none;" onchange="scanFromFile(this)">
           </div>
+          <input type="file" id="scan-file" accept="image/*" style="display:none;" onchange="scanFromFile(this)">
         </div>
 
-        <!-- Result -->
         <div class="scan-result-panel" id="scan-result" style="display:none;">
           <div class="scan-result-card">
             <div class="scan-result-header">
@@ -721,10 +772,13 @@
           <button class="card-header open" onclick="toggleAccordion(this)">
             <i class="fa-solid fa-list-ul ch-icon"></i>
             <span>Input Data</span>
+            <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
+              <span class="tooltip-pop">One URL or text per line. Max 200 items.</span>
+            </i>
             <i class="fa-solid fa-chevron-down arrow"></i>
           </button>
           <div class="card-body">
-            <p class="field-hint">One URL / text per line. Max 100 items.</p>
+            <p class="field-hint">One URL / text per line. Max 200 items.</p>
             <textarea class="input" id="batch-input" rows="8" style="resize:vertical;"
                       placeholder="https://example.com&#10;https://github.com&#10;Hello World"></textarea>
             <div class="field-hint mt-6" id="batch-count-hint">0 items</div>
@@ -735,10 +789,13 @@
           <button class="card-header open" onclick="toggleAccordion(this)">
             <i class="fa-solid fa-paint-brush ch-icon"></i>
             <span>Template Style</span>
+            <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
+              <span class="tooltip-pop">Choose a saved template to apply to all QR codes</span>
+            </i>
             <i class="fa-solid fa-chevron-down arrow"></i>
           </button>
           <div class="card-body">
-            <p class="field-hint mb-10">Choose one of your saved templates to apply to all QR codes. <a onclick="switchMode('gen')" class="link">Create templates in the Generator →</a></p>
+            <p class="field-hint mb-10">Select one of your saved templates. <a onclick="switchMode('gen')" class="link">Create templates in Generator →</a></p>
             <div id="batch-template-list"></div>
           </div>
         </div>
@@ -788,7 +845,6 @@
           </div>
         </div>
 
-        <!-- Multi-select action bar -->
         <div class="multi-select-bar" id="multi-select-bar" style="display:none;">
           <span id="select-count">0 selected</span>
           <div class="ms-actions">
@@ -1057,7 +1113,8 @@
 <div class="modal-bg" id="add-tag-modal">
   <div class="modal">
     <h3 class="modal-title"><i class="fa-solid fa-tag" style="color:var(--primary)"></i> Add Tag</h3>
-    <input class="input" id="add-tag-input" placeholder="Tag name…" maxlength="20">
+    <input class="input" id="add-tag-input" placeholder="Tag name…" maxlength="20"
+           onkeydown="if(event.key==='Enter') confirmAddTag()">
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('add-tag-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="confirmAddTag()">Add Tag</button>
@@ -1076,6 +1133,7 @@
       <div class="help-tip">⚙️ <strong>Error correction</strong> — Use H (Best) when adding a logo.</div>
       <div class="help-tip">🖨️ <strong>Blurry print</strong> — Ensure sharp edges, no pixelation.</div>
       <div class="help-tip">📷 <strong>Camera distance</strong> — Hold 15–30 cm from the code.</div>
+      <div class="help-tip">📶 <strong>WiFi QR</strong> — Must use correct format: WIFI:T:WPA;S:name;P:pass;;</div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="closeModal('help-modal')">Got it!</button>
@@ -1094,6 +1152,11 @@
       <div class="kb-row"><kbd>Ctrl+Z</kbd><span>Undo</span></div>
       <div class="kb-row"><kbd>Ctrl+Y</kbd><span>Redo</span></div>
       <div class="kb-row"><kbd>D</kbd><span>Toggle Dark / Light Mode</span></div>
+      <div class="kb-row"><kbd>1</kbd><span>Switch to Generate</span></div>
+      <div class="kb-row"><kbd>2</kbd><span>Switch to Projects</span></div>
+      <div class="kb-row"><kbd>3</kbd><span>Switch to Scan</span></div>
+      <div class="kb-row"><kbd>4</kbd><span>Switch to Batch</span></div>
+      <div class="kb-row"><kbd>5</kbd><span>Switch to Settings</span></div>
       <div class="kb-row"><kbd>?</kbd><span>Show this dialog</span></div>
       <div class="kb-row"><kbd>Esc</kbd><span>Close modal / bottom sheet</span></div>
     </div>
@@ -1106,12 +1169,12 @@
 <!-- Confirmation Modal (reusable) -->
 <div class="modal-bg" id="confirm-modal">
   <div class="modal">
-    <h3 class="modal-title" id="confirm-title"><i class="fa-solid fa-triangle-exclamation" style="color:var(--warning)"></i> Confirm</h3>
+    <h3 class="modal-title" id="confirm-title"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i> Confirm</h3>
     <p id="confirm-msg" style="font-size:.84rem; color:var(--text2); margin-bottom:10px;"></p>
     <div class="confirm-list" id="confirm-list" style="display:none; max-height:160px; overflow-y:auto; margin-bottom:10px;"></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('confirm-modal')">Cancel</button>
-      <button class="btn btn-danger" id="confirm-ok-btn">Confirm</button>
+      <button class="btn btn-danger" id="confirm-ok-btn"><i class="fa-solid fa-trash"></i> Confirm</button>
     </div>
   </div>
 </div>
@@ -1129,6 +1192,10 @@
           <i class="fa-solid fa-list-ul"></i>
           <span class="tooltip-pop">Table of Contents</span>
         </button>
+        <a class="icon-btn tooltip-wrap" href="https://github.com/muhtasim-rahman/qr-prism" target="_blank" rel="noopener">
+          <i class="fa-brands fa-github"></i>
+          <span class="tooltip-pop">Open on GitHub</span>
+        </a>
         <button class="icon-btn" onclick="closeModal('docs-modal')">
           <i class="fa-solid fa-xmark"></i>
         </button>
@@ -1158,7 +1225,7 @@
 <div class="modal-bg" id="import-modal">
   <div class="modal">
     <h3 class="modal-title"><i class="fa-solid fa-file-import" style="color:var(--primary)"></i> Import Data</h3>
-    <p style="font-size:.82rem; color:var(--text2); margin-bottom:12px;">Import projects or templates from a QR Prism JSON file. The type is auto-detected.</p>
+    <p style="font-size:.82rem; color:var(--text2); margin-bottom:12px;">Import projects or templates from a QR Prism JSON file. Type is auto-detected.</p>
     <div class="upload-zone" onclick="document.getElementById('import-file').click()">
       <i class="fa-solid fa-file-code"></i>
       <p>Click to select JSON file</p>
@@ -1176,25 +1243,41 @@
   <div class="modal">
     <div class="about-header">
       <div class="about-logo">
-        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="48" height="48">
-          <rect x="20" y="20" width="60" height="60" rx="12" stroke="currentColor" stroke-width="10"/>
-          <rect x="38" y="38" width="24" height="24" rx="4" fill="currentColor"/>
-          <path d="M 70 70 L 88 88" stroke="#818CF8" stroke-width="12" stroke-linecap="round"/>
+        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="52" height="52">
+          <rect x="8" y="8" width="35" height="35" rx="7" stroke="var(--primary)" stroke-width="8"/>
+          <rect x="17" y="17" width="17" height="17" rx="3" fill="var(--primary)"/>
+          <rect x="57" y="8" width="35" height="35" rx="7" stroke="var(--primary)" stroke-width="8"/>
+          <rect x="66" y="17" width="17" height="17" rx="3" fill="var(--primary)"/>
+          <rect x="8" y="57" width="35" height="35" rx="7" stroke="var(--primary)" stroke-width="8"/>
+          <rect x="17" y="66" width="17" height="17" rx="3" fill="var(--primary)"/>
+          <rect x="57" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
+          <rect x="72" y="57" width="9" height="9" rx="2" fill="#C084FC"/>
+          <rect x="57" y="72" width="9" height="9" rx="2" fill="#C084FC"/>
+          <rect x="72" y="72" width="9" height="9" rx="2" fill="#818CF8"/>
+          <rect x="83" y="83" width="9" height="9" rx="2" fill="#818CF8"/>
         </svg>
       </div>
       <div class="about-name"><span class="logo-qr">QR</span><span class="logo-prism">Prism</span></div>
-      <div class="about-version">v2.5</div>
+      <div class="about-version">v2.7</div>
     </div>
     <div class="about-desc">Professional, free QR code generator with custom patterns, gradients, logos, frames and templates. 100% client-side — your data never leaves your device.</div>
     <div class="about-features">
-      <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> 17 QR Types</div>
-      <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> 20+ Dot Patterns</div>
+      <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> 16 QR Types</div>
+      <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> 18+ Dot Patterns</div>
       <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> Gradient Colors</div>
       <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> Logo Embedding</div>
-      <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> 18 Preset Templates</div>
+      <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> 20 Preset Templates</div>
       <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> Batch Generator</div>
       <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> QR Scanner</div>
       <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> Works Offline (PWA)</div>
+    </div>
+    <div class="about-stack">
+      <span class="stack-pill">HTML</span>
+      <span class="stack-pill">CSS</span>
+      <span class="stack-pill">JavaScript</span>
+      <span class="stack-pill">qrcode.js</span>
+      <span class="stack-pill">jsQR</span>
+      <span class="stack-pill">Pickr</span>
     </div>
     <div class="about-author">
       Made with <i class="fa-solid fa-heart" style="color:#ef4444;"></i> by
@@ -1241,6 +1324,7 @@
 </script>
 
 <!-- App Scripts — order matters -->
+<script src="js/logos.js"></script>
 <script src="js/state.js"></script>
 <script src="js/qr-engine.js"></script>
 <script src="js/ui.js"></script>
@@ -1250,6 +1334,7 @@
 <script src="js/settings.js"></script>
 <script src="js/scanner.js"></script>
 <script src="js/batch.js"></script>
+<script src="js/report.js"></script>
 <script src="js/app.js"></script>
 
 </body>

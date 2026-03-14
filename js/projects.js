@@ -1,340 +1,288 @@
 // =========================================================
-// projects.js — QR Prism v2.5
-// Projects page: saved & auto-saved QR codes
-// Pinning, multi-select, tags, search, categories
+// PROJECTS.JS — QR Prism v2.7
+// Auto-save, manual save, project cards, tags, search
+// Author: Muhtasim Rahman (Turzo) · https://mdturzo.odoo.com
 // =========================================================
 
-const PROJECTS_KEY = 'qrs_projects';
+const PROJ_KEY = 'qrp_projects';
+let _projCategory  = 'saved';
+let _selectMode    = false;
+let _selectedIds   = new Set();
+let _lastAutoSaveData = null;
 
-// ── Load / Save ────────────────────────────────────────────
+// ── Load / Save ───────────────────────────────────────────────
 function loadProjects() {
-  try { return JSON.parse(localStorage.getItem(PROJECTS_KEY)) || []; } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(PROJ_KEY) || '[]'); }
+  catch(e) { return []; }
 }
+
 function saveProjectsData(projects) {
-  try { localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects)); } catch {}
+  try { localStorage.setItem(PROJ_KEY, JSON.stringify(projects)); }
+  catch(e) { showToast('Storage full or error', 'error'); }
 }
 
-// ── Auto-save (debounced, dedup) ───────────────────────────
-let _autoTimer = null;
-let _pendingData = null;
-
+// ── Auto-save (debounced, no duplicates) ──────────────────────
 function autoSaveToProjects(data) {
-  if (!SETTINGS.autoSaveProjects) return;
-  if (!data || !data.trim()) return;
-  _pendingData = data;
-  clearTimeout(_autoTimer);
-  _autoTimer = setTimeout(() => {
-    if (_pendingData) _doAutoSave(_pendingData);
-    _pendingData = null;
-  }, 1500);
-}
+  if (!data || !data.trim()) { setAutosaveStatus('waiting'); return; }
 
-function _doAutoSave(data) {
+  // Dedup: if same type + same data, just update existing
   const projects = loadProjects();
-  // No duplicate: check data + type
-  if (projects.find(p => p.data === data && p.type === S.activeType)) return;
-  const entry = {
-    id:     'proj_' + Date.now(),
+  const existing = projects.find(p =>
+    !p.savedByUser && p.type === S.activeType && p.data === data
+  );
+
+  if (existing) {
+    existing.updatedAt = Date.now();
+    existing.designSnapshot = JSON.stringify(getCurrentDesign());
+    const canvas = document.getElementById('qr-canvas');
+    if (canvas && canvas.style.display !== 'none') {
+      try { existing.qrDataURL = canvas.toDataURL('image/png', 0.7); } catch(e) {}
+    }
+    saveProjectsData(projects);
+    setAutosaveStatus('saved');
+    updateProjectCounts();
+    _lastAutoSaveData = data;
+    return;
+  }
+
+  // New auto-save entry
+  const canvas = document.getElementById('qr-canvas');
+  let qrDataURL = null;
+  if (canvas && canvas.style.display !== 'none') {
+    try { qrDataURL = canvas.toDataURL('image/png', 0.7); } catch(e) {}
+  }
+
+  const proj = {
+    id:             'proj_' + Date.now(),
+    type:           S.activeType,
+    title:          'Untitled',
     data,
-    type:   S.activeType || 'url',
-    projType: 'auto',   // 'saved' or 'auto'
-    name:   '',
-    tags:   [],
-    pinned: false,
-    date:   new Date().toISOString(),
-    design: captureDesignSnapshot(),
+    tags:           [],
+    qrDataURL,
+    designSnapshot: JSON.stringify(getCurrentDesign()),
+    savedByUser:    false,
+    pinned:         false,
+    createdAt:      Date.now(),
+    updatedAt:      Date.now(),
   };
-  projects.unshift(entry);
-  if (projects.length > 200) projects.pop();
+
+  projects.unshift(proj);
+  // Keep max 100 auto-saves
+  const autoOnly = projects.filter(p => !p.savedByUser);
+  if (autoOnly.length > 100) {
+    const oldest = autoOnly[autoOnly.length - 1];
+    const idx = projects.findIndex(p => p.id === oldest.id);
+    if (idx >= 0) projects.splice(idx, 1);
+  }
+
   saveProjectsData(projects);
+  setAutosaveStatus('saved');
   updateProjectCounts();
-  // Update bar
-  setAutosaveStatus('saved', 'Auto-saved');
-  setTimeout(() => setAutosaveStatus('', ''), 2000);
+  _lastAutoSaveData = data;
 }
 
-function captureDesignSnapshot() {
+function getCurrentDesign() {
   return {
     pattern: S.pattern, eyeFrame: S.eyeFrame, eyeInner: S.eyeInner,
-    fgColor: S.fgColor, bgColor: S.bgColor,
-    gradient: S.gradient, gc1: S.gc1, gc2: S.gc2, gType: S.gType,
-    frame: S.frame, frameLabel: S.frameLabel, frameColor: S.frameColor,
-    logoKey: S.logoKey, logoSize: S.logoSize,
-    size: S.size, ec: S.ec,
+    fgColor: S.fgColor, bgColor: S.bgColor, transparent: S.transparent,
+    gradient: S.gradient, gType: S.gType, gc1: S.gc1, gc2: S.gc2, gAngle: S.gAngle,
+    customMarker: S.customMarker, mbColor: S.mbColor, mcColor: S.mcColor,
+    customEF: S.customEF, efColor: S.efColor, customEI: S.customEI, eiColor: S.eiColor,
+    logoKey: S.logoKey, logoSize: S.logoSize, logoBR: S.logoBR, logoPad: S.logoPad,
+    logoPadColor: S.logoPadColor, logoRemoveBG: S.logoRemoveBG,
+    frame: S.frame, frameLabel: S.frameLabel, frameFont: S.frameFont,
+    frameTSize: S.frameTSize, frameLabelColor: S.frameLabelColor, frameColor: S.frameColor,
+    rotation: S.rotation, flipH: S.flipH, flipV: S.flipV, filter: S.filter,
+    invert: S.invert, shadow: S.shadow, shadowColor: S.shadowColor, shadowBlur: S.shadowBlur,
+    size: S.size, ec: S.ec, qz: S.qz,
   };
 }
 
-// ── State ──────────────────────────────────────────────────
-let _projCategory = 'all';   // 'all' | 'saved' | 'auto' | 'pinned'
-let _projSearch   = '';
-let _projSelected = new Set();
-let _projMultiSelect = false;
+// ── Manual Save (user clicks "Save Project") ──────────────────
+function saveProjectWithName() {
+  const nameInput = document.getElementById('save-proj-name');
+  const name = nameInput?.value.trim();
+  if (!name) { showToast('Please enter a project name', 'error'); return; }
 
-// ── Render Projects Page ───────────────────────────────────
-function renderProjects(query) {
-  if (query !== undefined) _projSearch = query;
+  const data = S.inputData || buildQRData();
+  if (!data) { showToast('Generate a QR code first', 'error'); return; }
+
+  const canvas = document.getElementById('qr-canvas');
+  let qrDataURL = null;
+  if (canvas && canvas.style.display !== 'none') {
+    try { qrDataURL = canvas.toDataURL('image/png', 0.75); } catch(e) {}
+  }
+
+  const proj = {
+    id:             'proj_' + Date.now(),
+    type:           S.activeType,
+    title:          name,
+    data,
+    tags:           [],
+    qrDataURL,
+    designSnapshot: JSON.stringify(getCurrentDesign()),
+    savedByUser:    true,
+    pinned:         false,
+    createdAt:      Date.now(),
+    updatedAt:      Date.now(),
+  };
+
+  const projects = loadProjects();
+  projects.unshift(proj);
+  saveProjectsData(projects);
+  closeModal('save-project-modal');
+  showToast(`"${name}" saved!`, 'success');
+  updateProjectCounts();
+}
+
+// ── Render Projects ───────────────────────────────────────────
+function renderProjects(query = '') {
   const list = document.getElementById('project-list');
   if (!list) return;
 
   let projects = loadProjects();
+  query = (document.getElementById('project-search')?.value || query || '').toLowerCase().trim();
 
   // Filter by category
-  if (_projCategory === 'saved')  projects = projects.filter(p => p.projType === 'saved');
-  if (_projCategory === 'auto')   projects = projects.filter(p => p.projType === 'auto' || !p.projType);
+  if (_projCategory === 'saved')  projects = projects.filter(p => p.savedByUser);
+  if (_projCategory === 'auto')   projects = projects.filter(p => !p.savedByUser);
   if (_projCategory === 'pinned') projects = projects.filter(p => p.pinned);
 
-  // Sort: pinned first, then by date
-  projects.sort((a, b) => {
-    if (a.pinned && !b.pinned) return -1;
-    if (!a.pinned && b.pinned) return 1;
-    return new Date(b.date) - new Date(a.date);
-  });
-
-  // Filter by search
-  const q = _projSearch.toLowerCase().trim();
-  if (q) {
+  // Search filter
+  if (query) {
     projects = projects.filter(p =>
-      (p.name && p.name.toLowerCase().includes(q)) ||
-      (p.data && p.data.toLowerCase().includes(q)) ||
-      (p.type && p.type.toLowerCase().includes(q)) ||
-      (p.tags && p.tags.some(t => t.toLowerCase().includes(q)))
+      (p.title || '').toLowerCase().includes(query) ||
+      (p.data  || '').toLowerCase().includes(query) ||
+      (p.tags  || []).some(t => t.toLowerCase().includes(query))
     );
   }
 
-  // Update category tab counts
-  _updateCategoryTabs();
+  // Sort: pinned first, then by updatedAt desc
+  projects.sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return (b.updatedAt || 0) - (a.updatedAt || 0);
+  });
+
+  updateProjectCounts();
 
   if (!projects.length) {
-    list.innerHTML = `
-      <div class="empty-state">
-        <i class="fa-solid fa-folder-open"></i>
-        <p>${q ? 'কোনো ফলাফল পাওয়া যায়নি।' : 'এখনো কোনো QR সেভ হয়নি।<br>Generator থেকে QR তৈরি করুন।'}</p>
-      </div>`;
+    list.innerHTML = `<div class="empty-state">
+      <i class="fa-solid fa-folder-open"></i>
+      <p>${query ? 'No projects match your search.' : 'No projects here yet.'}</p>
+      ${!query && _projCategory === 'saved' ? '<button class="btn btn-outline btn-sm" onclick="switchMode(\'gen\')"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate & Save</button>' : ''}
+    </div>`;
     return;
   }
 
-  list.innerHTML = projects.map(p => _renderProjectCard(p)).join('');
-
-  // Generate thumbnails asynchronously
-  projects.forEach(p => renderProjectThumb(p));
+  list.innerHTML = projects.map(p => buildProjectCard(p)).join('');
 }
 
-function _renderProjectCard(p) {
-  const isSelected = _projSelected.has(p.id);
-  const typeLabel = p.type ? p.type.toUpperCase().slice(0, 6) : 'URL';
-  const savedLabel = p.projType === 'saved' ? 'saved' : 'auto';
-  return `
-    <div class="project-card ${isSelected ? 'selected' : ''} ${p.pinned ? 'pinned' : ''}" id="pc-${p.id}"
-         ${_projMultiSelect ? `onclick="toggleProjectSelect('${p.id}')"` : ''}>
-      ${_projMultiSelect ? `
-        <div class="proj-select-check ${isSelected ? 'checked' : ''}" onclick="toggleProjectSelect('${p.id}')">
-          <i class="fa-solid fa-check"></i>
-        </div>` : ''}
-      <div class="project-thumb" onclick="${_projMultiSelect ? '' : `loadProjectInGen('${p.id}')`}">
-        <canvas id="thumb-${p.id}" width="80" height="80"></canvas>
+function buildProjectCard(p) {
+  const typeInfo = QR_TYPES.find(t => t.key === p.type) || { icon: 'fa-qrcode', title: p.type };
+  const date     = formatDate(p.updatedAt || p.createdAt);
+  const dataPreview = (p.data || '').slice(0, 80) + (p.data?.length > 80 ? '…' : '');
+  const tags     = (p.tags || []).map(t => `<span class="pc-tag" onclick="searchByTag('${escHtml(t)}')">${escHtml(t)}</span>`).join('');
+  const isUser   = p.savedByUser ? ' user-saved' : ' autosaved';
+  const pinIcon  = p.pinned ? '<i class="fa-solid fa-thumbtack pc-pin-icon"></i>' : '';
+  const selectCk = _selectMode ? `<input type="checkbox" class="pc-checkbox" ${_selectedIds.has(p.id) ? 'checked' : ''} onchange="toggleSelectProject('${p.id}',this)">` : '';
+  const thumb    = p.qrDataURL
+    ? `<img src="${p.qrDataURL}" alt="QR">`
+    : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--text3);font-size:1.5rem;"><i class="fa-solid fa-qrcode"></i></div>`;
+
+  return `<div class="pc-card${isUser}" data-id="${p.id}">
+    ${selectCk}
+    <div class="pc-thumb" onclick="loadProjectInGen('${p.id}')">${thumb}</div>
+    <div class="pc-body">
+      <div class="pc-head">
+        ${pinIcon}
+        <div class="pc-title">${escHtml(p.title || 'Untitled')}</div>
+        <span class="pc-type-badge"><i class="${typeInfo.icon}"></i>${escHtml(typeInfo.title || p.type)}</span>
       </div>
-      <div class="project-info">
-        <div class="project-name-row">
-          <span class="project-name ${!p.name ? 'unnamed' : ''}"
-                onclick="${_projMultiSelect ? `toggleProjectSelect('${p.id}')` : `openRenameProject('${p.id}')`}"
-                title="Click to rename">
-            ${p.name ? escHtmlP(p.name) : '<em style="color:var(--muted)">Unnamed</em>'}
-          </span>
-          <span class="proj-type-badge">${typeLabel}</span>
-          <span class="proj-save-badge proj-save-${savedLabel}">${savedLabel}</span>
-          ${p.pinned ? '<i class="fa-solid fa-thumbtack proj-pin-icon"></i>' : ''}
+      <div class="pc-meta">${date}</div>
+      <div class="pc-data">${escHtml(dataPreview)}</div>
+      ${tags ? `<div class="pc-tags">${tags}</div>` : ''}
+    </div>
+    <div class="pc-dot-menu">
+      <div class="dot-menu-wrap">
+        <button class="icon-btn" onclick="toggleDotMenu('dm-${p.id}',event)">
+          <i class="fa-solid fa-ellipsis-vertical"></i>
+        </button>
+        <div class="dot-menu-dropdown" id="dm-${p.id}">
+          <div class="dm-item" onclick="loadProjectInGen('${p.id}');closeDotMenu('dm-${p.id}')">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Load in Editor
+          </div>
+          <div class="dm-item" onclick="downloadProject('${p.id}');closeDotMenu('dm-${p.id}')">
+            <i class="fa-solid fa-download"></i> Download PNG
+          </div>
+          <div class="dm-item" onclick="openRenameModal('${p.id}','${escHtml(p.title || 'Untitled')}');closeDotMenu('dm-${p.id}')">
+            <i class="fa-solid fa-pencil"></i> Rename
+          </div>
+          <div class="dm-item" onclick="openAddTagModal('${p.id}');closeDotMenu('dm-${p.id}')">
+            <i class="fa-solid fa-tag"></i> Add Tag
+          </div>
+          <div class="dm-item" onclick="togglePinProject('${p.id}');closeDotMenu('dm-${p.id}')">
+            <i class="fa-solid fa-thumbtack"></i> ${p.pinned ? 'Unpin' : 'Pin'}
+          </div>
+          <div class="dm-item danger" onclick="deleteProject('${p.id}');closeDotMenu('dm-${p.id}')">
+            <i class="fa-solid fa-trash"></i> Delete
+          </div>
         </div>
-        <div class="project-data" title="${escHtmlP(p.data)}">${escHtmlP(truncateP(p.data, 52))}</div>
-        <div class="project-tags">
-          ${(p.tags||[]).map(t =>
-            `<span class="tag-chip">${escHtmlP(t)} <span onclick="removeProjectTag('${p.id}','${escHtmlP(t)}')">×</span></span>`
-          ).join('')}
-          <button class="tag-add-btn" onclick="addProjectTag('${p.id}')">+ tag</button>
-        </div>
-        <div class="project-meta">${formatDateP(p.date)}</div>
       </div>
-      <div class="project-actions">
-        <button class="icon-btn" title="Generator এ লোড করুন" onclick="loadProjectInGen('${p.id}')">
-          <i class="fa-solid fa-wand-magic-sparkles"></i>
-        </button>
-        <button class="icon-btn" title="${p.pinned ? 'Unpin' : 'Pin করুন'}" onclick="togglePinProject('${p.id}')">
-          <i class="fa-solid fa-thumbtack" style="${p.pinned?'color:var(--primary)':''}"></i>
-        </button>
-        <button class="icon-btn" title="Download" onclick="downloadProjectPNG('${p.id}')">
-          <i class="fa-solid fa-download"></i>
-        </button>
-        <button class="icon-btn danger" title="Delete" onclick="deleteProjectItem('${p.id}')">
-          <i class="fa-solid fa-trash"></i>
-        </button>
-      </div>
-    </div>`;
+    </div>
+  </div>`;
 }
 
-// ── Category Tabs ──────────────────────────────────────────
-function switchProjCategory(cat, el) {
-  _projCategory = cat;
-  document.querySelectorAll('.proj-cat-tab').forEach(t => t.classList.remove('active'));
-  if (el) el.classList.add('active');
-  renderProjects();
+function toggleDotMenu(id, e) {
+  e.stopPropagation();
+  const menu = document.getElementById(id);
+  const isOpen = menu?.classList.contains('open');
+  document.querySelectorAll('.dot-menu-dropdown.open').forEach(d => d.classList.remove('open'));
+  if (!isOpen && menu) menu.classList.add('open');
 }
 
-function _updateCategoryTabs() {
-  const all = loadProjects();
-  const counts = {
-    all:    all.length,
-    saved:  all.filter(p => p.projType === 'saved').length,
-    auto:   all.filter(p => p.projType === 'auto' || !p.projType).length,
-    pinned: all.filter(p => p.pinned).length,
-  };
-  Object.entries(counts).forEach(([cat, count]) => {
-    const badge = document.getElementById(`pcat-count-${cat}`);
-    if (badge) badge.textContent = count;
-  });
+function closeDotMenu(id) {
+  document.getElementById(id)?.classList.remove('open');
 }
 
-// ── Multi-select ───────────────────────────────────────────
-function toggleMultiSelect() {
-  _projMultiSelect = !_projMultiSelect;
-  _projSelected.clear();
-  const btn = document.getElementById('proj-multiselect-btn');
-  if (btn) {
-    btn.innerHTML = _projMultiSelect
-      ? '<i class="fa-solid fa-xmark"></i> বাতিল'
-      : '<i class="fa-regular fa-square-check"></i> Select';
-    btn.classList.toggle('active', _projMultiSelect);
-  }
-  const bar = document.getElementById('proj-bulk-bar');
-  if (bar) bar.style.display = _projMultiSelect ? 'flex' : 'none';
-  renderProjects();
-}
-
-function toggleProjectSelect(id) {
-  if (_projSelected.has(id)) _projSelected.delete(id);
-  else _projSelected.add(id);
-  const card = document.getElementById('pc-' + id);
-  const check = card?.querySelector('.proj-select-check');
-  if (card) card.classList.toggle('selected', _projSelected.has(id));
-  if (check) check.classList.toggle('checked', _projSelected.has(id));
-  const cnt = document.getElementById('proj-selected-count');
-  if (cnt) cnt.textContent = _projSelected.size + ' টি সিলেক্ট করা হয়েছে';
-}
-
-function selectAllProjects() {
-  const projects = loadProjects();
-  projects.forEach(p => _projSelected.add(p.id));
-  renderProjects();
-}
-
-function deleteSelectedProjects() {
-  if (!_projSelected.size) return;
-  const count = _projSelected.size;
-  showConfirm({
-    title: 'সিলেক্ট করা প্রজেক্ট মুছুন',
-    msg: `${count}টি প্রজেক্ট স্থায়ীভাবে মুছে ফেলা হবে।`,
-    okLabel: 'হ্যাঁ, মুছুন', okClass: 'btn-danger',
-    onConfirm: () => {
-      const projects = loadProjects().filter(p => !_projSelected.has(p.id));
-      saveProjectsData(projects);
-      _projSelected.clear();
-      _projMultiSelect = false;
-      document.getElementById('proj-bulk-bar').style.display = 'none';
-      renderProjects();
-      updateProjectCounts();
-      showToast(`${count}টি প্রজেক্ট মুছে ফেলা হয়েছে`, 'info');
-    }
-  });
-}
-
-// ── Save Project manually ──────────────────────────────────
-function openSaveProjectModal() {
-  const modal = document.getElementById('save-project-modal');
-  const nameInput = document.getElementById('proj-name-input');
-  if (nameInput) nameInput.value = '';
-  if (modal) openModal('save-project-modal');
-}
-
-function confirmSaveProject() {
-  const name = document.getElementById('proj-name-input')?.value.trim() || '';
-  const qrData = getQRData();
-  if (!qrData) { showToast('QR ডেটা নেই', 'error'); return; }
-
-  const entry = {
-    id: 'proj_' + Date.now(),
-    data: qrData,
-    type: S.activeType || 'url',
-    projType: 'saved',
-    name,
-    tags: [],
-    pinned: false,
-    date: new Date().toISOString(),
-    design: captureDesignSnapshot(),
-  };
-  const projects = loadProjects();
-  projects.unshift(entry);
-  saveProjectsData(projects);
-  closeModal('save-project-modal');
-  updateProjectCounts();
-  showToast('প্রজেক্ট সেভ হয়েছে!', 'success');
-}
-
-// ── Rename Project ─────────────────────────────────────────
-function openRenameProject(id) {
+// ── Project Actions ───────────────────────────────────────────
+function loadProjectInGen(id) {
   const projects = loadProjects();
   const p = projects.find(x => x.id === id);
   if (!p) return;
-  const nameInp = document.getElementById('proj-name-input');
-  if (nameInp) nameInp.value = p.name || '';
-  const modal = document.getElementById('save-project-modal');
-  if (modal) {
-    const title = modal.querySelector('.modal-title');
-    if (title) title.textContent = 'প্রজেক্ট রিনেম';
-    modal.dataset.renameId = id;
-    openModal('save-project-modal');
-  }
-}
-
-// Override confirm to handle rename too
-function confirmSaveProjectOrRename() {
-  const modal = document.getElementById('save-project-modal');
-  const renameId = modal?.dataset.renameId;
-  if (renameId) {
-    const name = document.getElementById('proj-name-input')?.value.trim() || '';
-    const projects = loadProjects();
-    const p = projects.find(x => x.id === renameId);
-    if (p) { p.name = name; saveProjectsData(projects); renderProjects(); showToast('নাম আপডেট হয়েছে', 'success'); }
-    delete modal.dataset.renameId;
-    closeModal('save-project-modal');
-    return;
-  }
-  confirmSaveProject();
-}
-
-// ── Thumbnail ──────────────────────────────────────────────
-function renderProjectThumb(p) {
-  const canvas = document.getElementById('thumb-' + p.id);
-  if (!canvas) return;
-  try {
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 80, 80);
-    const div = document.createElement('div');
-    div.style.cssText = 'position:absolute;visibility:hidden;left:-9999px;top:-9999px;';
-    document.body.appendChild(div);
-    new QRCode(div, { text: p.data || ' ', width: 80, height: 80, correctLevel: QRCode.CorrectLevel.M });
-    const img = div.querySelector('img') || div.querySelector('canvas');
-    if (img) {
-      if (img.tagName === 'CANVAS') {
-        ctx.drawImage(img, 0, 0, 80, 80);
-      } else {
-        img.onload = () => ctx.drawImage(img, 0, 0, 80, 80);
-        if (img.complete) ctx.drawImage(img, 0, 0, 80, 80);
-      }
+  switchMode('gen');
+  setTimeout(() => {
+    S.activeType = p.type || 'url';
+    document.querySelectorAll('.type-tab').forEach(b =>
+      b.classList.toggle('active', b.dataset.type === S.activeType)
+    );
+    renderTypeTab(S.activeType);
+    // Apply design snapshot
+    if (p.designSnapshot) {
+      try {
+        const d = JSON.parse(p.designSnapshot);
+        Object.assign(S, d);
+        syncAllUI();
+        if (typeof updatePickrColors === 'function') updatePickrColors();
+      } catch(e) {}
     }
-    setTimeout(() => { try { document.body.removeChild(div); } catch {} }, 500);
-  } catch {}
+    // Fill data
+    setTimeout(() => {
+      const el = document.getElementById('f-' + S.activeType) ||
+                 document.querySelector('.qr-input');
+      if (el) { el.value = p.data || ''; }
+      schedRender(true);
+    }, 100);
+  }, 200);
 }
 
-// ── Pin ────────────────────────────────────────────────────
+function downloadProject(id) {
+  const projects = loadProjects();
+  const p = projects.find(x => x.id === id);
+  if (!p || !p.qrDataURL) { showToast('No preview — load & regenerate', 'info'); return; }
+  triggerDownload(p.qrDataURL, 'qr-prism_' + (p.title || 'untitled').replace(/\s+/g,'-') + '.png');
+  showToast('Downloading…', 'success');
+}
+
 function togglePinProject(id) {
   const projects = loadProjects();
   const p = projects.find(x => x.id === id);
@@ -342,95 +290,192 @@ function togglePinProject(id) {
   p.pinned = !p.pinned;
   saveProjectsData(projects);
   renderProjects();
-  showToast(p.pinned ? 'Pinned!' : 'Unpinned', 'info');
+  showToast(p.pinned ? 'Pinned' : 'Unpinned', 'success');
 }
 
-// ── Tags ───────────────────────────────────────────────────
-function addProjectTag(id) {
-  openModal('tag-modal');
-  document.getElementById('tag-input').value = '';
-  document.getElementById('tag-modal').dataset.targetId = id;
-}
-
-function confirmAddTag() {
-  const id  = document.getElementById('tag-modal').dataset.targetId;
-  const tag = document.getElementById('tag-input')?.value.trim();
-  if (!tag) return;
+function deleteProject(id) {
   const projects = loadProjects();
   const p = projects.find(x => x.id === id);
   if (!p) return;
-  p.tags = p.tags || [];
-  if (!p.tags.includes(tag)) { p.tags.push(tag); saveProjectsData(projects); }
-  closeModal('tag-modal');
-  renderProjects();
-}
-
-function removeProjectTag(id, tag) {
-  const projects = loadProjects();
-  const p = projects.find(x => x.id === id);
-  if (!p) return;
-  p.tags = (p.tags || []).filter(t => t !== tag);
-  saveProjectsData(projects);
-  renderProjects();
-}
-
-// ── Load in Generator ──────────────────────────────────────
-function loadProjectInGen(id) {
-  const projects = loadProjects();
-  const p = projects.find(x => x.id === id);
-  if (!p) return;
-  switchMode('gen');
-  if (p.type) { S.activeType = p.type; renderTypeTabs(); renderTypeTab(p.type); }
-  if (p.design) { Object.assign(S, p.design); syncAllUI(); }
-  setTimeout(() => { setInputData(p.type, p.data); schedRender(); }, 150);
-  showToast('Generator এ লোড হয়েছে', 'success');
-}
-
-function setInputData(type, data) {
-  const firstInput = document.querySelector('#form-fields input, #form-fields textarea');
-  if (firstInput) firstInput.value = data;
-}
-
-// ── Download ───────────────────────────────────────────────
-function downloadProjectPNG(id) {
-  const projects = loadProjects();
-  const p = projects.find(x => x.id === id);
-  if (!p) return;
-  const canvas = document.getElementById('thumb-' + id);
-  if (!canvas) return;
-  const a = document.createElement('a');
-  a.download = (p.name || 'qr-prism') + '.png';
-  a.href = canvas.toDataURL('image/png');
-  a.click();
-  showToast('Downloaded!', 'success');
-}
-
-// ── Delete ─────────────────────────────────────────────────
-function deleteProjectItem(id) {
-  const projects = loadProjects();
-  const p = projects.find(x => x.id === id);
-  const doDelete = () => {
-    saveProjectsData(projects.filter(x => x.id !== id));
-    document.getElementById('pc-' + id)?.remove();
-    updateProjectCounts();
-    showToast('মুছে ফেলা হয়েছে', 'info');
-  };
-  if (SETTINGS.confirmDelete !== false) {
+  if (SETTINGS.confirmDelete) {
     showConfirm({
-      title: 'প্রজেক্ট মুছুন',
-      msg: `"${p?.name || p?.data?.slice(0,40) || 'এই প্রজেক্ট'}" মুছে ফেলা হবে।`,
-      okLabel: 'হ্যাঁ, মুছুন', okClass: 'btn-danger',
-      onConfirm: doDelete,
+      title: 'Delete Project',
+      msg: `Delete "${p.title || 'Untitled'}"? This cannot be undone.`,
+      okLabel: 'Delete',
+      okClass: 'btn-danger',
+      onConfirm: () => {
+        const updated = loadProjects().filter(x => x.id !== id);
+        saveProjectsData(updated);
+        renderProjects();
+        updateProjectCounts();
+        showToast('Project deleted', 'info');
+      }
     });
-  } else { doDelete(); }
+  } else {
+    const updated = loadProjects().filter(x => x.id !== id);
+    saveProjectsData(updated);
+    renderProjects();
+    updateProjectCounts();
+  }
 }
 
-// ── Helpers ────────────────────────────────────────────────
-function escHtmlP(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function searchByTag(tag) {
+  const searchEl = document.getElementById('project-search');
+  if (searchEl) {
+    searchEl.value = tag;
+    renderProjects(tag);
+  }
 }
-function truncateP(s, n) { s=String(s||''); return s.length>n?s.slice(0,n)+'…':s; }
-function formatDateP(iso) {
-  try { return new Date(iso).toLocaleDateString('bn-BD',{year:'numeric',month:'short',day:'numeric'}); }
-  catch { return iso||''; }
+
+// ── Multi-select ──────────────────────────────────────────────
+function toggleProjectSelect() {
+  _selectMode = !_selectMode;
+  _selectedIds.clear();
+  const bar = document.getElementById('multi-select-bar');
+  const btn = document.getElementById('select-btn');
+  if (bar) bar.style.display = _selectMode ? 'flex' : 'none';
+  if (btn) btn.innerHTML = _selectMode
+    ? '<i class="fa-solid fa-xmark"></i> Cancel'
+    : '<i class="fa-solid fa-check-square"></i> Select';
+  renderProjects();
+}
+
+function cancelProjectSelect() {
+  _selectMode = false;
+  _selectedIds.clear();
+  const bar = document.getElementById('multi-select-bar');
+  const btn = document.getElementById('select-btn');
+  if (bar) bar.style.display = 'none';
+  if (btn) btn.innerHTML = '<i class="fa-solid fa-check-square"></i> Select';
+  renderProjects();
+}
+
+function toggleSelectProject(id, checkbox) {
+  if (checkbox.checked) _selectedIds.add(id);
+  else _selectedIds.delete(id);
+  const cnt = document.getElementById('select-count');
+  if (cnt) cnt.textContent = _selectedIds.size + ' selected';
+}
+
+function deleteSelectedProjects() {
+  if (!_selectedIds.size) return;
+  showConfirm({
+    title: 'Delete Selected',
+    msg: `Delete ${_selectedIds.size} project(s)? This cannot be undone.`,
+    okLabel: 'Delete All',
+    okClass: 'btn-danger',
+    onConfirm: () => {
+      const projects = loadProjects().filter(p => !_selectedIds.has(p.id));
+      saveProjectsData(projects);
+      _selectedIds.clear();
+      cancelProjectSelect();
+      updateProjectCounts();
+      showToast('Projects deleted', 'info');
+    }
+  });
+}
+
+function downloadSelectedProjects() {
+  if (!_selectedIds.size) return;
+  const projects = loadProjects().filter(p => _selectedIds.has(p.id));
+  projects.forEach(p => {
+    if (p.qrDataURL) triggerDownload(p.qrDataURL, 'qr-prism_' + (p.title||'qr').replace(/\s+/g,'-') + '.png');
+  });
+  showToast(`Downloading ${projects.length} QR code(s)`, 'success');
+}
+
+// ── Export / Import ───────────────────────────────────────────
+function exportProjects() {
+  const projects = loadProjects();
+  const data = {
+    _type:   'qrp_projects',
+    _ver:    '2.7',
+    _date:   new Date().toISOString(),
+    _copy:   '© QR Prism by Muhtasim Rahman (Turzo)',
+    projects,
+  };
+  exportJSON(data, buildExportFilename('projects', projects.length));
+  showToast(`Exported ${projects.length} project(s)`, 'success');
+}
+
+function handleImportFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const json = JSON.parse(e.target.result);
+      // Auto-detect type
+      if (json._type === 'qrp_projects' && json.projects) {
+        importProjectsData(json.projects);
+      } else if (json._type === 'qrp_templates' && json.templates) {
+        importTemplatesData(json.templates);
+      } else if (json._type === 'qrp_all') {
+        if (json.projects)  importProjectsData(json.projects);
+        if (json.templates) importTemplatesData(json.templates);
+      } else {
+        showToast('Unknown file format', 'error');
+      }
+    } catch(err) {
+      showToast('Invalid JSON file', 'error');
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+  closeModal('import-modal');
+}
+
+function importProjectsData(incoming) {
+  const existing = loadProjects();
+  const existIds = new Set(existing.map(p => p.id));
+  let added = 0;
+  incoming.forEach(p => {
+    if (!existIds.has(p.id)) { existing.push(p); added++; }
+  });
+  saveProjectsData(existing);
+  renderProjects();
+  updateProjectCounts();
+  showToast(`Imported ${added} project(s)`, 'success');
+}
+
+function importTemplatesData(incoming) {
+  const existing = loadUserTemplates();
+  const existIds = new Set(existing.map(t => t.id));
+  let added = 0;
+  incoming.forEach(t => {
+    if (!existIds.has(t.id)) { existing.push(t); added++; }
+  });
+  saveUserTemplatesData(existing);
+  renderUserTemplates();
+  showToast(`Imported ${added} template(s)`, 'success');
+}
+
+// ── Tab Switching ────────────────────────────────────────
+let _currentProjTab = 'saved';
+function switchProjectTab(tab, btn) {
+  _currentProjTab = tab;
+  document.querySelectorAll('.projects-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderProjects(document.getElementById('project-search')?.value || '');
+}
+
+// ── Rename Project ───────────────────────────────────────
+let _renamingId = null;
+function openRenameModal(id) {
+  _renamingId = id;
+  const projects = loadProjects();
+  const p = projects.find(x => x.id === id);
+  const inp = document.getElementById('rename-proj-input');
+  if (inp) inp.value = p?.title || '';
+  openModal('rename-project-modal');
+}
+function confirmRenameProject() {
+  const name = document.getElementById('rename-proj-input')?.value.trim();
+  if (!name || !_renamingId) return;
+  const projects = loadProjects();
+  const idx = projects.findIndex(x => x.id === _renamingId);
+  if (idx !== -1) { projects[idx].title = name; saveProjectsData(projects); }
+  closeModal('rename-project-modal');
+  renderProjects();
+  _renamingId = null;
 }

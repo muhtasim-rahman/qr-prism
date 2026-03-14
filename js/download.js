@@ -1,83 +1,139 @@
 // =========================================================
-// DOWNLOAD.JS — Download, clipboard, share
+// DOWNLOAD.JS — QR Prism v2.7
+// PNG, JPG, SVG, WebP, 2x, 4x, PDF export
+// Author: Muhtasim Rahman (Turzo) · https://mdturzo.odoo.com
 // =========================================================
 
-function downloadQR(fmt) {
+function downloadQR(format) {
   const canvas = document.getElementById('qr-canvas');
   if (!canvas || canvas.style.display === 'none') {
-    showToast('Generate a QR code first!', 'warning');
+    showToast('Generate a QR code first', 'info');
     return;
   }
-  // Close dropdown if open
-  const dd = document.getElementById('dl-dropdown');
-  if (dd) dd.classList.remove('open');
-  try {
-    if (fmt === 'png') {
-      _dlURL(canvas.toDataURL('image/png'), 'qr.png');
-    } else if (fmt === 'webp') {
-      _dlURL(canvas.toDataURL('image/webp', 0.95), 'qr.webp');
-    } else if (fmt === 'jpg') {
-      const tmp = document.createElement('canvas');
-      tmp.width = canvas.width; tmp.height = canvas.height;
-      const ctx = tmp.getContext('2d');
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, tmp.width, tmp.height);
-      ctx.drawImage(canvas, 0, 0);
-      _dlURL(tmp.toDataURL('image/jpeg', 0.92), 'qr.jpg');
-    } else if (fmt === 'png2x' || fmt === 'png4x') {
-      const scale = fmt === 'png2x' ? 2 : 4;
-      const tmp = document.createElement('canvas');
-      tmp.width = canvas.width * scale; tmp.height = canvas.height * scale;
-      const ctx = tmp.getContext('2d');
-      ctx.imageSmoothingEnabled = false;
-      ctx.scale(scale, scale);
-      ctx.drawImage(canvas, 0, 0);
-      _dlURL(tmp.toDataURL('image/png'), `qr-${scale}x.png`);
-    } else if (fmt === 'svg') {
-      const dataUrl = canvas.toDataURL('image/png');
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}"><image href="${dataUrl}" width="${canvas.width}" height="${canvas.height}"/></svg>`;
-      const blob = new Blob([svg], { type: 'image/svg+xml' });
-      const url = URL.createObjectURL(blob);
-      _dlURL(url, 'qr.svg');
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      showToast('Downloaded!', 'success');
-      return;
-    }
-    showToast('Downloaded!', 'success');
-  } catch (e) {
-    showToast('Download failed: ' + e.message, 'error');
+
+  const filename = 'qr-prism_' + (S.activeType || 'qr') + '_' + Date.now();
+
+  switch (format) {
+    case 'png':
+      downloadCanvasAs(canvas, filename + '.png', 'image/png', 1);
+      break;
+
+    case 'jpg':
+      downloadCanvasWithBG(canvas, filename + '.jpg', 'image/jpeg', 0.92);
+      break;
+
+    case 'webp':
+      downloadCanvasAs(canvas, filename + '.webp', 'image/webp', 0.92);
+      break;
+
+    case 'png2x':
+      downloadScaled(canvas, filename + '_2x.png', 2);
+      break;
+
+    case 'png4x':
+      downloadScaled(canvas, filename + '_4x.png', 4);
+      break;
+
+    case 'svg':
+      downloadAsSVG(canvas, filename + '.svg');
+      break;
+
+    case 'pdf':
+      downloadAsPDF(canvas, filename + '.pdf');
+      break;
+
+    default:
+      downloadCanvasAs(canvas, filename + '.png', 'image/png', 1);
   }
+  // Close dropdown
+  document.getElementById('dl-dropdown')?.classList.remove('open');
 }
 
-function _dlURL(url, filename) {
+function downloadCanvasAs(canvas, name, mime, quality) {
+  const url = canvas.toDataURL(mime, quality);
+  triggerDownload(url, name);
+  showToast('Downloading ' + name.split('.').pop().toUpperCase(), 'success');
+}
+
+function downloadCanvasWithBG(canvas, name, mime, quality) {
+  // JPEG doesn't support transparency — fill white background
+  const tmp = document.createElement('canvas');
+  tmp.width  = canvas.width;
+  tmp.height = canvas.height;
+  const ctx  = tmp.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, tmp.width, tmp.height);
+  ctx.drawImage(canvas, 0, 0);
+  const url = tmp.toDataURL(mime, quality);
+  triggerDownload(url, name);
+  showToast('Downloading JPG', 'success');
+}
+
+function downloadScaled(canvas, name, scale) {
+  const tmp  = document.createElement('canvas');
+  tmp.width  = canvas.width  * scale;
+  tmp.height = canvas.height * scale;
+  const ctx  = tmp.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(canvas, 0, 0, tmp.width, tmp.height);
+  const url = tmp.toDataURL('image/png');
+  triggerDownload(url, name);
+  showToast('Downloading ' + scale + '× PNG', 'success');
+}
+
+function downloadAsSVG(canvas, name) {
+  const w   = canvas.width;
+  const h   = canvas.height;
+  const url = canvas.toDataURL('image/png');
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+  width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  <image width="${w}" height="${h}" xlink:href="${url}"/>
+</svg>`;
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const objUrl = URL.createObjectURL(blob);
+  triggerDownload(objUrl, name);
+  setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+  showToast('Downloading SVG', 'success');
+}
+
+function downloadAsPDF(canvas, name) {
+  // Simple PDF using canvas data URL embedded in a PDF-compatible page
+  const w   = canvas.width;
+  const h   = canvas.height;
+  const url = canvas.toDataURL('image/png');
+
+  // Build minimal valid PDF with the image
+  // We use a printable HTML approach as fallback since jsPDF isn't included
+  const html = `<!DOCTYPE html><html><head>
+    <style>
+      * { margin:0; padding:0; }
+      body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:#fff; }
+      img { max-width:100%; max-height:100vh; }
+    </style>
+  </head><body>
+    <img src="${url}" alt="QR Code" style="width:${Math.min(w,595)}px;height:auto;">
+    <script>window.onload=()=>{ window.print(); }</script>
+  </body></html>`;
+
+  const blob   = new Blob([html], { type: 'text/html' });
+  const objUrl = URL.createObjectURL(blob);
+  const win    = window.open(objUrl, '_blank');
+  if (!win) {
+    // Fallback: download PNG
+    downloadCanvasAs(canvas, name.replace('.pdf', '.png'), 'image/png', 1);
+    showToast('PDF blocked — downloading PNG instead', 'warning');
+  } else {
+    showToast('PDF print dialog opened', 'info');
+  }
+  setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
+}
+
+function triggerDownload(url, name) {
   const a = document.createElement('a');
-  a.download = filename;
-  a.href = url;
+  a.href  = url;
+  a.download = name;
+  document.body.appendChild(a);
   a.click();
-}
-
-async function copyToClipboard() {
-  const canvas = document.getElementById('qr-canvas');
-  if (!canvas || canvas.style.display === 'none') return;
-  canvas.toBlob(async (blob) => {
-    try {
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      showToast('Copied to clipboard!', 'success');
-    } catch (e) {
-      showToast('Copy not supported — use Download', 'warning');
-    }
-  }, 'image/png');
-}
-
-async function shareQR() {
-  const canvas = document.getElementById('qr-canvas');
-  if (!canvas || canvas.style.display === 'none') return;
-  canvas.toBlob(async (blob) => {
-    const file = new File([blob], 'qr-code.png', { type: 'image/png' });
-    if (navigator.share && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ title: 'QR Code', files: [file] }); return; } catch (e) {}
-    }
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 3000);
-  });
+  document.body.removeChild(a);
 }

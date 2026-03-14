@@ -1,242 +1,160 @@
 // =========================================================
-// templates.js — QR Prism v2.5
-// User & preset templates, save modal, apply, manage page
+// TEMPLATES.JS — QR Prism v2.7
+// Save / load / export / import user templates
+// Author: Muhtasim Rahman (Turzo) · https://mdturzo.odoo.com
 // =========================================================
 
-const TEMPLATES_KEY = 'qrs_templates';
+const TMPL_KEY = 'qrp_templates';
 
-// ── Load / Save ────────────────────────────────────────────
 function loadUserTemplates() {
-  try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY)) || []; } catch { return []; }
-}
-function saveUserTemplateData(templates) {
-  try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates)); } catch {}
+  try { return JSON.parse(localStorage.getItem(TMPL_KEY) || '[]'); }
+  catch(e) { return []; }
 }
 
-// ── Save Template Modal ────────────────────────────────────
-function openSaveTemplateModal() {
-  const inp = document.getElementById('save-name');
-  if (inp) inp.value = '';
-  openModal('save-modal');
+function saveUserTemplatesData(templates) {
+  try { localStorage.setItem(TMPL_KEY, JSON.stringify(templates)); }
+  catch(e) { showToast('Storage error', 'error'); }
 }
 
-// ── Save Current State as Template ────────────────────────
 function saveTemplate() {
-  const name = document.getElementById('save-name')?.value.trim();
-  if (!name) { showToast('টেমপ্লেটের নাম দিন', 'warning'); return; }
+  const name = document.getElementById('save-tmpl-name')?.value.trim();
+  if (!name) { showToast('Please enter a template name', 'error'); return; }
 
   const design = {
     pattern: S.pattern, eyeFrame: S.eyeFrame, eyeInner: S.eyeInner,
     fgColor: S.fgColor, bgColor: S.bgColor, transparent: S.transparent,
     gradient: S.gradient, gType: S.gType, gc1: S.gc1, gc2: S.gc2, gAngle: S.gAngle,
     customMarker: S.customMarker, mbColor: S.mbColor, mcColor: S.mcColor,
-    customEF: S.customEF, efColor: S.efColor,
-    customEI: S.customEI, eiColor: S.eiColor,
+    customEF: S.customEF, efColor: S.efColor, customEI: S.customEI, eiColor: S.eiColor,
+    logoKey: S.logoKey, logoSize: S.logoSize, logoBR: S.logoBR,
+    logoPad: S.logoPad, logoPadColor: S.logoPadColor, logoRemoveBG: S.logoRemoveBG,
     frame: S.frame, frameLabel: S.frameLabel, frameFont: S.frameFont,
     frameTSize: S.frameTSize, frameLabelColor: S.frameLabelColor, frameColor: S.frameColor,
-    logoKey: S.logoKey, logoSrc: S.logoKey ? S.logoSrc : null,
-    logoSize: S.logoSize, logoBR: S.logoBR, logoPad: S.logoPad,
-    logoPadColor: S.logoPadColor, logoRemoveBG: S.logoRemoveBG,
-    ec: S.ec, qz: S.qz, size: S.size,
   };
 
   const templates = loadUserTemplates();
-  templates.unshift({ id: 'utmpl_' + Date.now(), name, date: new Date().toISOString(), design });
-  saveUserTemplateData(templates);
-  closeModal('save-modal');
-  showToast(`"${name}" সেভ হয়েছে!`, 'success');
+  templates.unshift({ id: 'tpl_' + Date.now(), name, design, createdAt: Date.now() });
+  saveUserTemplatesData(templates);
+
+  closeModal('save-template-modal');
   renderUserTemplates();
+  showToast(`Template "${name}" saved!`, 'success');
 }
 
-// ── Apply Template ─────────────────────────────────────────
-function applyTemplate(design) {
+function applyUserTemplate(idx) {
+  const templates = loadUserTemplates();
+  const t = templates[idx];
+  if (!t) return;
   pushUndo();
-  Object.assign(S, design);
-  // Restore preset logo if logoKey is set
-  if (design.logoKey && !design.logoSrc) {
-    const logo = PRESET_LOGOS.find(l => l.key === design.logoKey);
-    if (logo) {
-      const blob = new Blob([logo.svg], { type: 'image/svg+xml' });
-      S.logoSrc = URL.createObjectURL(blob);
-    }
-  }
+  Object.assign(S, t.design);
   syncAllUI();
   if (typeof updatePickrColors === 'function') updatePickrColors();
   schedRender();
-  showToast('টেমপ্লেট প্রয়োগ হয়েছে', 'success');
+  showToast(`Template "${t.name}" applied`, 'success');
 }
 
-// ── Render Preset Template Grid (inside generator card) ───
-function renderPresetTemplates() {
-  const grid = document.getElementById('preset-tgrid');
-  if (!grid) return;
-  grid.innerHTML = PRESET_TEMPLATES.map(tmpl => `
-    <div class="template-card" onclick="applyTemplate(${JSON.stringify(tmpl.state).replace(/"/g,'&quot;')})"
-         title="${tmpl.name}">
-      <div class="tmpl-thumb" id="ptthumb-${tmpl.id}">
-        <canvas width="80" height="80"></canvas>
-      </div>
-      <div class="tmpl-name">${tmpl.name}</div>
-      ${tmpl.category ? `<div class="tmpl-cat">${tmpl.category}</div>` : ''}
-    </div>`).join('');
-
-  // Draw preset template previews
-  setTimeout(() => {
-    PRESET_TEMPLATES.forEach(tmpl => {
-      const cv = document.querySelector(`#ptthumb-${tmpl.id} canvas`);
-      if (!cv) return;
-      drawTemplateThumbnail(cv, tmpl.state);
-    });
-  }, 100);
-}
-
-// ── Render User Templates (inside generator accordion) ────
-function renderUserTemplates() {
-  const list = document.getElementById('saved-tlist');
-  if (!list) return;
+function deleteUserTemplate(idx) {
   const templates = loadUserTemplates();
-
-  if (!templates.length) {
-    list.innerHTML = `<div class="empty-msg"><i class="fa-solid fa-bookmark" style="color:var(--muted);"></i> সেভ করা টেমপ্লেট নেই।</div>`;
-    return;
-  }
-
-  list.innerHTML = templates.map(t => `
-    <div class="saved-template-row" id="strow-${t.id}">
-      <div class="st-info" onclick="applyTemplate(${JSON.stringify(t.design).replace(/"/g,'&quot;')})">
-        <div class="st-color-dot" style="background:${t.design.fgColor||'#000'};"></div>
-        <div>
-          <div class="st-name">${escHtmlT(t.name)}</div>
-          <div class="st-date">${formatDateT(t.date)}</div>
-        </div>
-      </div>
-      <button class="icon-btn danger" title="Delete" onclick="deleteUserTemplate('${t.id}')">
-        <i class="fa-solid fa-trash"></i>
-      </button>
-    </div>`).join('');
+  const t = templates[idx];
+  if (!t) return;
+  showConfirm({
+    title: 'Delete Template',
+    msg: `Delete "${t.name}"?`,
+    okLabel: 'Delete', okClass: 'btn-danger',
+    onConfirm: () => {
+      templates.splice(idx, 1);
+      saveUserTemplatesData(templates);
+      renderUserTemplates();
+      renderTemplatesManage();
+      showToast('Template deleted', 'info');
+    }
+  });
 }
 
-// ── Render Templates Manage Page ───────────────────────────
-function renderTemplatesManage() {
-  const container = document.getElementById('templates-manage-content');
-  if (!container) return;
+function exportTemplates() {
   const templates = loadUserTemplates();
-  if (!templates.length) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <i class="fa-solid fa-bookmark"></i>
-        <p>কোনো কাস্টম টেমপ্লেট নেই।<br>Generator থেকে একটি ডিজাইন সেভ করুন।</p>
-      </div>`;
-    return;
-  }
-  container.innerHTML = `
-    <div class="tmpl-manage-header">
-      <span>${templates.length}টি টেমপ্লেট</span>
-      <button class="btn btn-danger btn-sm" onclick="clearAllTemplatesConfirm()">
-        <i class="fa-solid fa-trash"></i> সব মুছুন</button>
-    </div>
-    ${templates.map(t => `
-      <div class="tmpl-manage-row" id="tmrow-${t.id}">
-        <div class="tmpl-manage-thumb">
-          <canvas id="tmthumb-${t.id}" width="56" height="56"></canvas>
-        </div>
-        <div class="tmpl-manage-info">
-          <div class="tmpl-manage-name">${escHtmlT(t.name)}</div>
-          <div class="tmpl-manage-date">${formatDateT(t.date)}</div>
-        </div>
-        <div class="tmpl-manage-actions">
-          <button class="btn btn-primary btn-sm" onclick="applyTemplateAndSwitch(${JSON.stringify(t.design).replace(/"/g,'&quot;')})">
-            <i class="fa-solid fa-wand-magic-sparkles"></i> Apply</button>
-          <button class="icon-btn danger" onclick="deleteUserTemplate('${t.id}')">
-            <i class="fa-solid fa-trash"></i></button>
-        </div>
-      </div>`).join('')}`;
-
-  setTimeout(() => {
-    templates.forEach(t => {
-      const cv = document.getElementById('tmthumb-' + t.id);
-      if (cv) drawTemplateThumbnail(cv, t.design);
-    });
-  }, 100);
-}
-
-function applyTemplateAndSwitch(design) {
-  applyTemplate(design);
-  switchMode('gen');
-}
-
-// ── Thumbnail Preview ──────────────────────────────────────
-function drawTemplateThumbnail(canvas, design) {
-  if (!canvas) return;
-  const size = canvas.width || 80;
-  const ctx = canvas.getContext('2d');
-  // Draw a minimal QR-style preview based on the design colors
-  const fg = design.fgColor || '#000000';
-  const bg = design.bgColor || '#ffffff';
-  const g1 = design.gc1 || fg;
-  const g2 = design.gc2 || fg;
-
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, size, size);
-
-  if (design.gradient) {
-    const grad = ctx.createLinearGradient(0, 0, size, size);
-    grad.addColorStop(0, g1);
-    grad.addColorStop(1, g2);
-    ctx.fillStyle = grad;
-  } else {
-    ctx.fillStyle = fg;
-  }
-
-  // Draw a tiny QR-like grid pattern
-  const cell = size / 8;
-  const qrPattern = [
-    [1,1,1,1,1,1,1,0],
-    [1,0,0,0,0,0,1,0],
-    [1,0,1,1,1,0,1,0],
-    [1,0,1,0,1,0,1,0],
-    [1,0,1,1,1,0,1,0],
-    [1,0,0,0,0,0,1,0],
-    [1,1,1,1,1,1,1,0],
-    [0,0,0,1,0,1,0,1],
-  ];
-  qrPattern.forEach((row, r) => row.forEach((cell_v, c) => {
-    if (cell_v) ctx.fillRect(c * cell, r * cell, cell - 0.5, cell - 0.5);
-  }));
-
-  // Round corners if the pattern supports it
-  if (design.pattern && design.pattern.includes('round')) {
-    ctx.globalCompositeOperation = 'destination-in';
-    ctx.beginPath();
-    ctx.roundRect(0, 0, size, size, size * 0.12);
-    ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
-  }
-}
-
-// ── Delete User Template ───────────────────────────────────
-function deleteUserTemplate(id) {
-  const doDelete = () => {
-    saveUserTemplateData(loadUserTemplates().filter(t => t.id !== id));
-    renderUserTemplates();
-    renderTemplatesManage();
-    showToast('টেমপ্লেট মুছে ফেলা হয়েছে', 'info');
+  const data = {
+    _type: 'qrp_templates', _ver: '2.7',
+    _date: new Date().toISOString(),
+    _copy: '© QR Prism by Muhtasim Rahman (Turzo)',
+    templates,
   };
-  if (SETTINGS.confirmDelete !== false) {
-    showConfirm({
-      title: 'টেমপ্লেট মুছুন',
-      msg: 'এই টেমপ্লেট স্থায়ীভাবে মুছে ফেলা হবে।',
-      okLabel: 'হ্যাঁ, মুছুন', okClass: 'btn-danger',
-      onConfirm: doDelete,
-    });
-  } else { doDelete(); }
+  exportJSON(data, buildExportFilename('templates', templates.length));
+  showToast(`Exported ${templates.length} template(s)`, 'success');
 }
 
-// ── Helpers ────────────────────────────────────────────────
-function escHtmlT(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+// ── Modal openers ────────────────────────────────────────
+function openSaveTemplateModal() {
+  const nameEl = document.getElementById('save-tmpl-name');
+  if (nameEl) nameEl.value = '';
+  openModal('save-template-modal');
 }
-function formatDateT(iso) {
-  try { return new Date(iso).toLocaleDateString('bn-BD', {month:'short',day:'numeric',year:'numeric'}); }
-  catch { return iso||''; }
+
+function openSaveProjectModal() {
+  const nameEl = document.getElementById('save-proj-name');
+  if (nameEl) nameEl.value = '';
+  openModal('save-project-modal');
+}
+
+// ── Export helpers ───────────────────────────────────────
+function buildExportFilename(type, count) {
+  const now = new Date();
+  const d = `${String(now.getDate()).padStart(2,'0')}-${String(now.getMonth()+1).padStart(2,'0')}-${now.getFullYear()}`;
+  const t = `${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`;
+  return `qr-prism_${type}_${count}_${d}_${t}.json`;
+}
+
+function exportJSON(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── Import ───────────────────────────────────────────────
+function handleImportFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data._type === 'qrp_templates' || data.templates) {
+        const tmpl = data.templates || [];
+        const existing = loadUserTemplates();
+        const ids = new Set(existing.map(t => t.id));
+        let added = 0;
+        tmpl.forEach(t => { if (!ids.has(t.id)) { existing.push(t); added++; } });
+        saveUserTemplatesData(existing);
+        renderUserTemplates();
+        renderTemplatesManage();
+        showToast(`Imported ${added} template(s)`, 'success');
+      } else if (data._type === 'qrp_projects' || data.projects) {
+        const proj = data.projects || [];
+        const existing = JSON.parse(localStorage.getItem('qrp_projects') || '[]');
+        const ids = new Set(existing.map(p => p.id));
+        let added = 0;
+        proj.forEach(p => { if (!ids.has(p.id)) { existing.push(p); added++; } });
+        localStorage.setItem('qrp_projects', JSON.stringify(existing));
+        renderProjects(); updateProjectCounts();
+        showToast(`Imported ${added} project(s)`, 'success');
+      } else if (data._type === 'qrp_all') {
+        if (data.projects)  { localStorage.setItem('qrp_projects', JSON.stringify(data.projects)); }
+        if (data.templates) { localStorage.setItem('qrp_templates', JSON.stringify(data.templates)); }
+        if (data.profile)   { localStorage.setItem('qrp_profile', JSON.stringify(data.profile)); syncProfileUI(); }
+        if (data.settings)  { Object.assign(SETTINGS, data.settings); saveSettingsData(); applyTheme(SETTINGS.theme); }
+        showToast('All data imported!', 'success');
+      } else {
+        showToast('Unknown file format', 'error');
+      }
+    } catch(err) {
+      showToast('Invalid JSON file', 'error');
+    }
+    input.value = '';
+    closeModal('import-modal');
+  };
+  reader.readAsText(file);
 }

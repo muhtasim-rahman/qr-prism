@@ -1,131 +1,94 @@
-// ═══════════════════════════════════════════════
-// QR Prism v2.5 — Service Worker
-// Advanced offline caching strategy
-// ═══════════════════════════════════════════════
+// =========================================================
+// SW.JS — QR Prism v2.7 Service Worker
+// Cache-first strategy for local assets
+// Author: Muhtasim Rahman (Turzo)
+// =========================================================
 
-const CACHE_VERSION = 'qr-prism-v2.5.0';
-const STATIC_CACHE  = `${CACHE_VERSION}-static`;
-const CDN_CACHE     = `${CACHE_VERSION}-cdn`;
+const CACHE_NAME = 'qr-prism-v2.7';
+const CACHE_VERSION = '2.7.0';
 
-// Core app files to pre-cache
 const STATIC_ASSETS = [
   './',
   './index.html',
   './css/style.css',
-  './js/app.js',
   './js/state.js',
-  './js/qr-engine.js',
+  './js/app.js',
   './js/ui.js',
+  './js/qr-engine.js',
   './js/download.js',
   './js/templates.js',
   './js/projects.js',
   './js/settings.js',
   './js/scanner.js',
   './js/batch.js',
+  './js/report.js',
+  './js/logos.js',
   './designs/patterns.js',
   './designs/eye-frames.js',
   './designs/eye-inners.js',
   './designs/frames.js',
   './designs/preset-templates.js',
   './manifest.json',
+  './README.md',
 ];
 
-// CDN resources to cache on first use
-const CDN_PATTERNS = [
-  'cdnjs.cloudflare.com',
-  'cdn.jsdelivr.net',
-  'fonts.googleapis.com',
-  'fonts.gstatic.com',
-];
-
-// ── Install ──────────────────────────────────────
+// Install: cache all static assets
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then(cache => cache.addAll(STATIC_ASSETS.map(url => new Request(url, { cache: 'reload' }))))
-      .then(() => self.skipWaiting())
-      .catch(err => console.warn('[SW] Pre-cache partial failure:', err))
+    caches.open(CACHE_NAME).then(cache => {
+      return Promise.allSettled(
+        STATIC_ASSETS.map(url => cache.add(url).catch(() => {}))
+      );
+    }).then(() => self.skipWaiting())
   );
 });
 
-// ── Activate ─────────────────────────────────────
+// Activate: clean up old caches
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
-        keys
-          .filter(k => k.startsWith('qr-prism-') && k !== STATIC_CACHE && k !== CDN_CACHE)
-          .map(k => caches.delete(k))
+        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
       )
     ).then(() => self.clients.claim())
   );
 });
 
-// ── Fetch Strategy ────────────────────────────────
+// Fetch: cache-first for local, network-first for CDN
 self.addEventListener('fetch', event => {
-  const { request } = event;
-  const url = new URL(request.url);
+  const url = new URL(event.request.url);
 
   // Skip non-GET and chrome-extension
-  if (request.method !== 'GET') return;
+  if (event.request.method !== 'GET') return;
   if (url.protocol === 'chrome-extension:') return;
 
-  // CDN resources — Cache First, network fallback
-  const isCDN = CDN_PATTERNS.some(p => url.hostname.includes(p));
+  // CDN assets: network-first with cache fallback
+  const isCDN = url.hostname.includes('cdn.jsdelivr.net') ||
+                url.hostname.includes('cdnjs.cloudflare.com') ||
+                url.hostname.includes('fonts.googleapis.com') ||
+                url.hostname.includes('fonts.gstatic.com');
+
   if (isCDN) {
-    event.respondWith(cdnFirst(request));
+    event.respondWith(
+      fetch(event.request).then(response => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        return response;
+      }).catch(() => caches.match(event.request))
+    );
     return;
   }
 
-  // Same-origin app files — Network First, cache fallback
-  if (url.origin === self.location.origin) {
-    event.respondWith(networkFirst(request));
-    return;
-  }
-});
-
-// Network First (app files)
-async function networkFirst(request) {
-  try {
-    const networkRes = await fetch(request);
-    if (networkRes.ok) {
-      const cache = await caches.open(STATIC_CACHE);
-      cache.put(request, networkRes.clone());
-    }
-    return networkRes;
-  } catch {
-    const cached = await caches.match(request);
-    if (cached) return cached;
-    // Return offline page for navigation
-    if (request.mode === 'navigate') {
-      return caches.match('./index.html');
-    }
-    return new Response('Offline', { status: 503 });
-  }
-}
-
-// Cache First (CDN resources)
-async function cdnFirst(request) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-  try {
-    const networkRes = await fetch(request);
-    if (networkRes.ok) {
-      const cache = await caches.open(CDN_CACHE);
-      cache.put(request, networkRes.clone());
-    }
-    return networkRes;
-  } catch {
-    return new Response('CDN resource unavailable offline', { status: 503 });
-  }
-}
-
-// ── Message Handler ───────────────────────────────
-self.addEventListener('message', event => {
-  if (event.data === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-  if (event.data === 'GET_VERSION') {
-    event.ports[0].postMessage({ version: CACHE_VERSION });
-  }
+  // Local assets: cache-first
+  event.respondWith(
+    caches.match(event.request).then(cached => {
+      if (cached) return cached;
+      return fetch(event.request).then(response => {
+        if (!response || response.status !== 200 || response.type === 'opaque') return response;
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        return response;
+      });
+    })
+  );
 });
