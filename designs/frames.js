@@ -1,326 +1,195 @@
 // =========================================================
-// designs/frames.js — QR Border Frames (outer decorative frames)
-// Each frame has: id, label, group, hasText, draw(ctx, qrX, qrY, qrSize, opts)
-// opts: { color, label, font, textSize, labelColor }
+// FRAMES.JS — QR Prism v2.7
+// 10 QR Outer Frame Designs
+// draw(ctx, canvasSize, label, font, tSize, labelColor, frameColor)
+// hasText: true = appears in "With Label" tab
+//          false = appears in "Without Label" tab
 // =========================================================
 
 const FRAMES = [
-
-  // ── No Label ──────────────────────────────────────────
-
   {
     id: 'frm-none',
-    label: 'None',
-    group: 'No Frame',
+    name: 'None',
     hasText: false,
-    padding: 0,
-    draw(ctx, qx, qy, qs, opts) { /* no frame */ }
+    draw() {} // No frame
   },
 
   {
-    id: 'frm-simple-border',
-    label: 'Simple Border',
-    group: 'No Label',
-    hasText: false,
-    padding: 18,
-    draw(ctx, qx, qy, qs, opts) {
-      const p = 9;
-      ctx.strokeStyle = opts.color;
-      ctx.lineWidth = 4;
-      ctx.strokeRect(qx - p, qy - p, qs + p * 2, qs + p * 2);
-    }
-  },
-
-  {
-    id: 'frm-rounded-border',
-    label: 'Rounded Border',
-    group: 'No Label',
-    hasText: false,
-    padding: 20,
-    draw(ctx, qx, qy, qs, opts) {
-      const p = 10;
-      ctx.strokeStyle = opts.color;
-      ctx.lineWidth = 5;
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      rrect(ctx, qx - p, qy - p, qs + p * 2, qs + p * 2, 18);
-      ctx.stroke();
-    }
-  },
-
-  {
-    id: 'frm-double-border',
-    label: 'Double Border',
-    group: 'No Label',
-    hasText: false,
-    padding: 26,
-    draw(ctx, qx, qy, qs, opts) {
-      ctx.strokeStyle = opts.color;
-      [8, 16].forEach(p => {
-        ctx.lineWidth = 2.5;
-        ctx.strokeRect(qx - p, qy - p, qs + p * 2, qs + p * 2);
-      });
-    }
-  },
-
-  {
-    id: 'frm-corner-marks',
-    label: 'Corner Marks',
-    group: 'No Label',
-    hasText: false,
-    padding: 24,
-    draw(ctx, qx, qy, qs, opts) {
-      const p = 12, arm = 28;
-      ctx.strokeStyle = opts.color;
-      ctx.lineWidth = 4;
-      ctx.lineCap = 'square';
-      const corners = [
-        [qx - p, qy - p + arm, qx - p, qy - p, qx - p + arm, qy - p],
-        [qx + qs + p - arm, qy - p, qx + qs + p, qy - p, qx + qs + p, qy - p + arm],
-        [qx - p, qy + qs + p - arm, qx - p, qy + qs + p, qx - p + arm, qy + qs + p],
-        [qx + qs + p - arm, qy + qs + p, qx + qs + p, qy + qs + p, qx + qs + p, qy + qs + p - arm],
-      ];
-      corners.forEach(([x1, y1, x2, y2, x3, y3]) => {
-        ctx.beginPath();
-        ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x3, y3);
-        ctx.stroke();
-      });
-    }
-  },
-
-  {
-    id: 'frm-shadow-box',
-    label: 'Shadow Box',
-    group: 'No Label',
-    hasText: false,
-    padding: 22,
-    draw(ctx, qx, qy, qs, opts) {
-      const p = 11;
-      ctx.shadowColor = opts.color + '55';
-      ctx.shadowBlur = 18;
-      ctx.shadowOffsetX = 4;
-      ctx.shadowOffsetY = 4;
-      ctx.strokeStyle = opts.color;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(qx - p, qy - p, qs + p * 2, qs + p * 2);
-      ctx.shadowColor = 'transparent';
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-    }
-  },
-
-  // ── With Label ────────────────────────────────────────
-
-  {
-    id: 'frm-banner-bottom',
-    label: 'Banner Bottom',
-    group: 'With Label',
+    id: 'frm-bottom-bar',
+    name: 'Bottom Bar',
     hasText: true,
-    padding: 16,
-    bannerH: 52,
-    draw(ctx, qx, qy, qs, opts) {
-      const p = 8, bh = 52;
-      const fx = qx - p, fy = qy - p;
-      const fw = qs + p * 2, fh = qs + p * 2 + bh;
-      ctx.fillStyle = opts.color;
-      ctx.beginPath();
-      rrect(ctx, fx, fy, fw, fh, 14);
-      ctx.fill();
-      // clear QR area
-      ctx.clearRect(qx, qy, qs, qs);
-      // text
-      const fs = Math.round(22 * (opts.textSize / 100));
-      ctx.font = `600 ${fs}px '${opts.font}', sans-serif`;
-      ctx.fillStyle = opts.labelColor;
+    draw(ctx, size, label, font, tSize, labelColor, frameColor) {
+      const barH = Math.round(size * 0.12);
+      const y = size;
+      // Extend canvas conceptually (in qr-engine, canvas is already sized)
+      ctx.fillStyle = frameColor;
+      ctx.fillRect(0, size - barH, size, barH);
+      // Label
+      const fontSize = Math.round((size * 0.055) * (tSize / 100));
+      ctx.fillStyle = labelColor;
+      ctx.font = `700 ${fontSize}px ${font || 'Poppins'}, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(opts.label || 'Scan Me', fx + fw / 2, fy + fh - bh / 2);
+      ctx.fillText(label || 'Scan Me', size/2, size - barH/2);
     }
   },
 
   {
-    id: 'frm-banner-top',
-    label: 'Banner Top',
-    group: 'With Label',
+    id: 'frm-top-bar',
+    name: 'Top Bar',
     hasText: true,
-    padding: 16,
-    bannerH: 52,
-    topBanner: true,
-    draw(ctx, qx, qy, qs, opts) {
-      const p = 8, bh = 52;
-      const fx = qx - p, fy = qy - p - bh;
-      const fw = qs + p * 2, fh = qs + p * 2 + bh;
-      ctx.fillStyle = opts.color;
-      ctx.beginPath();
-      rrect(ctx, fx, fy, fw, fh, 14);
-      ctx.fill();
-      ctx.clearRect(qx, qy, qs, qs);
-      const fs = Math.round(22 * (opts.textSize / 100));
-      ctx.font = `600 ${fs}px '${opts.font}', sans-serif`;
-      ctx.fillStyle = opts.labelColor;
+    draw(ctx, size, label, font, tSize, labelColor, frameColor) {
+      const barH = Math.round(size * 0.12);
+      ctx.fillStyle = frameColor;
+      ctx.fillRect(0, 0, size, barH);
+      const fontSize = Math.round((size * 0.055) * (tSize / 100));
+      ctx.fillStyle = labelColor;
+      ctx.font = `700 ${fontSize}px ${font || 'Poppins'}, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(opts.label || 'Scan Me', fx + fw / 2, fy + bh / 2);
+      ctx.fillText(label || 'Scan Me', size/2, barH/2);
+    }
+  },
+
+  {
+    id: 'frm-polaroid',
+    name: 'Polaroid',
+    hasText: true,
+    draw(ctx, size, label, font, tSize, labelColor, frameColor) {
+      const barH = Math.round(size * 0.14);
+      const topH  = Math.round(size * 0.04);
+      // Top thin bar
+      ctx.fillStyle = frameColor;
+      ctx.fillRect(0, 0, size, topH);
+      // Bottom white area with label
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, size - barH, size, barH);
+      const fontSize = Math.round((size * 0.05) * (tSize / 100));
+      ctx.fillStyle = frameColor;
+      ctx.font = `600 ${fontSize}px ${font || 'Poppins'}, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label || 'Scan Me', size/2, size - barH/2);
     }
   },
 
   {
     id: 'frm-badge',
-    label: 'Badge',
-    group: 'With Label',
+    name: 'Badge',
     hasText: true,
-    padding: 20,
-    draw(ctx, qx, qy, qs, opts) {
-      const p = 10, bh = 48;
-      const fw = qs + p * 2, cx = qx - p, cy = qy - p;
-      // outer badge
-      ctx.strokeStyle = opts.color;
-      ctx.lineWidth = 4;
+    draw(ctx, size, label, font, tSize, labelColor, frameColor) {
+      const barH = Math.round(size * 0.1);
+      const pad  = Math.round(size * 0.04);
+      const badgeY = size - barH;
+      const rX  = size * 0.15;
+      const rW  = size * 0.7;
+      const r   = barH / 2;
+
+      ctx.fillStyle = frameColor;
       ctx.beginPath();
-      rrect(ctx, cx, cy, fw, qs + p * 2 + bh + 8, 16);
-      ctx.stroke();
-      // bottom pill
-      ctx.fillStyle = opts.color;
-      ctx.beginPath();
-      rrect(ctx, cx + 10, qy + qs + p - 2, fw - 20, bh, bh / 2);
+      ctx.roundRect(rX, badgeY, rW, barH, r);
       ctx.fill();
-      const fs = Math.round(20 * (opts.textSize / 100));
-      ctx.font = `700 ${fs}px '${opts.font}', sans-serif`;
-      ctx.fillStyle = opts.labelColor;
+
+      const fontSize = Math.round((size * 0.048) * (tSize / 100));
+      ctx.fillStyle = labelColor;
+      ctx.font = `700 ${fontSize}px ${font || 'Poppins'}, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(opts.label || 'Scan Me', cx + fw / 2, qy + qs + p + bh / 2 + 2);
+      ctx.fillText(label || 'Scan Me', size/2, badgeY + barH/2);
     }
   },
 
   {
     id: 'frm-ribbon',
-    label: 'Ribbon',
-    group: 'With Label',
+    name: 'Ribbon',
     hasText: true,
-    padding: 20,
-    draw(ctx, qx, qy, qs, opts) {
-      const p = 10, rh = 46;
-      const cx = qx - p, cy = qy - p, fw = qs + p * 2;
-      ctx.strokeStyle = opts.color;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(cx, cy, fw, qs + p * 2);
-      // ribbon
-      ctx.fillStyle = opts.color;
+    draw(ctx, size, label, font, tSize, labelColor, frameColor) {
+      const barH = Math.round(size * 0.1);
+      const barY = size - barH;
+      const notch = barH * 0.4;
+
+      ctx.fillStyle = frameColor;
       ctx.beginPath();
-      ctx.moveTo(cx, qy + qs + p - rh);
-      ctx.lineTo(cx + fw, qy + qs + p - rh);
-      ctx.lineTo(cx + fw, qy + qs + p + 6);
-      ctx.lineTo(cx + fw / 2 + 10, qy + qs + p + 6);
-      ctx.lineTo(cx + fw / 2, qy + qs + p + 20);
-      ctx.lineTo(cx + fw / 2 - 10, qy + qs + p + 6);
-      ctx.lineTo(cx, qy + qs + p + 6);
+      ctx.moveTo(0, barY);
+      ctx.lineTo(size, barY);
+      ctx.lineTo(size, barY + barH - notch);
+      ctx.lineTo(size/2, barY + barH);
+      ctx.lineTo(0, barY + barH - notch);
       ctx.closePath();
       ctx.fill();
-      const fs = Math.round(18 * (opts.textSize / 100));
-      ctx.font = `600 ${fs}px '${opts.font}', sans-serif`;
-      ctx.fillStyle = opts.labelColor;
+
+      const fontSize = Math.round((size * 0.048) * (tSize / 100));
+      ctx.fillStyle = labelColor;
+      ctx.font = `700 ${fontSize}px ${font || 'Poppins'}, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(opts.label || 'Scan Me', cx + fw / 2, qy + qs + p - rh / 2 + 4);
+      ctx.fillText(label || 'Scan Me', size/2, barY + barH * 0.42);
     }
   },
 
   {
-    id: 'frm-fancy-border-label',
-    label: 'Fancy + Label',
-    group: 'With Label',
-    hasText: true,
-    padding: 24,
-    draw(ctx, qx, qy, qs, opts) {
-      const p = 12, bh = 54;
-      const cx = qx - p, cy = qy - p;
-      const fw = qs + p * 2, fh = qs + p * 2 + bh;
-      ctx.fillStyle = opts.color;
-      ctx.beginPath();
-      rrect(ctx, cx, cy, fw, fh, 20);
-      ctx.fill();
-      ctx.clearRect(qx, qy, qs, qs);
-      // decorative dots top corners
-      ['#fff2', '#fff4'].forEach((c, i) => {
-        ctx.fillStyle = c;
-        ctx.beginPath();
-        ctx.arc(cx + 20, cy + 20, 10 - i * 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(cx + fw - 20, cy + 20, 10 - i * 4, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      const fs = Math.round(22 * (opts.textSize / 100));
-      ctx.font = `700 ${fs}px '${opts.font}', sans-serif`;
-      ctx.fillStyle = opts.labelColor;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(opts.label || 'Scan Me', cx + fw / 2, cy + fh - bh / 2);
+    id: 'frm-border-sq',
+    name: 'Square Border',
+    hasText: false,
+    draw(ctx, size, label, font, tSize, labelColor, frameColor) {
+      const t = Math.round(size * 0.025);
+      ctx.strokeStyle = frameColor;
+      ctx.lineWidth = t;
+      ctx.strokeRect(t/2, t/2, size - t, size - t);
     }
   },
 
   {
-    id: 'frm-pill-label',
-    label: 'Pill Label',
-    group: 'With Label',
-    hasText: true,
-    padding: 18,
-    draw(ctx, qx, qy, qs, opts) {
-      const p = 9, bh = 44;
-      const cx = qx - p, cy = qy - p;
-      const fw = qs + p * 2;
-      ctx.strokeStyle = opts.color;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(cx, cy, fw, qs + p * 2);
-      ctx.fillStyle = opts.color;
+    id: 'frm-border-rd',
+    name: 'Round Border',
+    hasText: false,
+    draw(ctx, size, label, font, tSize, labelColor, frameColor) {
+      const t = Math.round(size * 0.025);
+      const r = size * 0.06;
+      ctx.strokeStyle = frameColor;
+      ctx.lineWidth = t;
       ctx.beginPath();
-      rrect(ctx, cx + fw * 0.1, qy + qs + p + 6, fw * 0.8, bh, bh / 2);
-      ctx.fill();
-      const fs = Math.round(18 * (opts.textSize / 100));
-      ctx.font = `600 ${fs}px '${opts.font}', sans-serif`;
-      ctx.fillStyle = opts.labelColor;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(opts.label || 'Scan Me', cx + fw / 2, qy + qs + p + 6 + bh / 2);
+      ctx.roundRect(t/2, t/2, size-t, size-t, r);
+      ctx.stroke();
     }
   },
 
   {
-    id: 'frm-arrow-label',
-    label: 'Arrow Label',
-    group: 'With Label',
-    hasText: true,
-    padding: 18,
-    draw(ctx, qx, qy, qs, opts) {
-      const p = 9, bh = 46;
-      const cx = qx - p;
-      const fw = qs + p * 2;
-      ctx.strokeStyle = opts.color;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(cx, qy - p, fw, qs + p * 2);
-      // arrow shape
-      ctx.fillStyle = opts.color;
-      ctx.beginPath();
-      ctx.moveTo(cx, qy + qs + p + 2);
-      ctx.lineTo(cx + fw - 24, qy + qs + p + 2);
-      ctx.lineTo(cx + fw, qy + qs + p + bh / 2 + 2);
-      ctx.lineTo(cx + fw - 24, qy + qs + p + bh + 2);
-      ctx.lineTo(cx, qy + qs + p + bh + 2);
-      ctx.closePath();
-      ctx.fill();
-      const fs = Math.round(18 * (opts.textSize / 100));
-      ctx.font = `600 ${fs}px '${opts.font}', sans-serif`;
-      ctx.fillStyle = opts.labelColor;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(opts.label || 'Scan Me', cx + (fw - 12) / 2, qy + qs + p + bh / 2 + 4);
+    id: 'frm-corner-mark',
+    name: 'Corner Marks',
+    hasText: false,
+    draw(ctx, size, label, font, tSize, labelColor, frameColor) {
+      const len = size * 0.12;
+      const t   = Math.round(size * 0.025);
+      const off = t / 2;
+      ctx.strokeStyle = frameColor;
+      ctx.lineWidth = t;
+      ctx.lineCap = 'square';
+
+      // Top-left
+      ctx.beginPath(); ctx.moveTo(off, off+len); ctx.lineTo(off, off); ctx.lineTo(off+len, off); ctx.stroke();
+      // Top-right
+      ctx.beginPath(); ctx.moveTo(size-off-len, off); ctx.lineTo(size-off, off); ctx.lineTo(size-off, off+len); ctx.stroke();
+      // Bottom-left
+      ctx.beginPath(); ctx.moveTo(off, size-off-len); ctx.lineTo(off, size-off); ctx.lineTo(off+len, size-off); ctx.stroke();
+      // Bottom-right
+      ctx.beginPath(); ctx.moveTo(size-off-len, size-off); ctx.lineTo(size-off, size-off); ctx.lineTo(size-off, size-off-len); ctx.stroke();
     }
   },
 
+  {
+    id: 'frm-double-border',
+    name: 'Double Border',
+    hasText: false,
+    draw(ctx, size, label, font, tSize, labelColor, frameColor) {
+      const t1 = Math.round(size * 0.018);
+      const gap = t1 * 2;
+      ctx.strokeStyle = frameColor;
+      // Outer
+      ctx.lineWidth = t1;
+      ctx.strokeRect(t1/2, t1/2, size-t1, size-t1);
+      // Inner
+      ctx.strokeRect(t1+gap, t1+gap, size-2*(t1+gap), size-2*(t1+gap));
+    }
+  },
 ];
-
-function getFrame(id) {
-  return FRAMES.find(f => f.id === id) || FRAMES[0];
-}

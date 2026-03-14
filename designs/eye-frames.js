@@ -1,222 +1,269 @@
 // =========================================================
-// designs/eye-frames.js — QR Eye Frame (Outer Border) Designs
-// draw(ctx, x, y, size, color) — x,y = top-left corner, size = 7-module block size
+// EYE-FRAMES.JS — QR Prism v2.7
+// 12 Eye Frame Designs
+// CRITICAL: NEVER fill inner area with color (bgColor step
+//           in qr-engine.js handles that separately)
+// Each: { id, name, draw(ctx, x, y, size7, color) }
 // =========================================================
 
 const EYE_FRAMES = [
-
-  // ── Square Family ─────────────────────────────────────
-
   {
     id: 'ef-square',
-    label: 'Square',
-    group: 'Classic',
+    name: 'Square',
     draw(ctx, x, y, s, color) {
-      const bw = s / 7;
+      const t = s / 7; // border thickness ≈ 1 module
       ctx.fillStyle = color;
-      // Draw outer ring as 4 rects
-      ctx.fillRect(x, y, s, bw);                         // top
-      ctx.fillRect(x, y + s - bw, s, bw);                // bottom
-      ctx.fillRect(x, y + bw, bw, s - bw * 2);           // left
-      ctx.fillRect(x + s - bw, y + bw, bw, s - bw * 2);  // right
+      // Top
+      ctx.fillRect(x, y, s, t);
+      // Bottom
+      ctx.fillRect(x, y + s - t, s, t);
+      // Left
+      ctx.fillRect(x, y + t, t, s - t * 2);
+      // Right
+      ctx.fillRect(x + s - t, y + t, t, s - t * 2);
     }
   },
-
   {
-    id: 'ef-rounded-outer',
-    label: 'Rounded',
-    group: 'Classic',
+    id: 'ef-round',
+    name: 'Rounded',
     draw(ctx, x, y, s, color) {
-      const bw = s / 7;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = bw;
-      ctx.lineJoin = 'round';
+      const t = s / 7;
+      const r = s * 0.22;
+      ctx.fillStyle = color;
+      // Outer rounded rect
       ctx.beginPath();
-      const r = bw * 1.8;
-      const inset = bw / 2;
-      rrect(ctx, x + inset, y + inset, s - inset * 2, s - inset * 2, r);
-      ctx.stroke();
+      ctx.roundRect(x, y, s, s, r);
+      // Inner cutout
+      ctx.roundRect(x + t, y + t, s - t * 2, s - t * 2, r * 0.55);
+      ctx.fill('evenodd');
     }
   },
-
   {
     id: 'ef-circle',
-    label: 'Circle',
-    group: 'Classic',
+    name: 'Circle',
     draw(ctx, x, y, s, color) {
-      const bw = s / 7;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = bw;
-      ctx.beginPath();
-      ctx.arc(x + s / 2, y + s / 2, s / 2 - bw / 2, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-  },
-
-  // ── Corner Styles ─────────────────────────────────────
-
-  {
-    id: 'ef-corner-dot',
-    label: 'Corner Dot',
-    group: 'Modern',
-    draw(ctx, x, y, s, color) {
-      const bw = s / 7;
-      const r = bw * 1.2;
-      ctx.fillStyle = color;
-      // 4 L-shaped corners
-      const drawCorner = (cx, cy, fx, fy) => {
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillRect(Math.min(cx, cx + fx * bw * 2), cy - bw / 2, bw * 2.2, bw);
-        ctx.fillRect(cx - bw / 2, Math.min(cy, cy + fy * bw * 2), bw, bw * 2.2);
-      };
-      drawCorner(x + bw / 2, y + bw / 2, 1, 1);
-      drawCorner(x + s - bw / 2, y + bw / 2, -1, 1);
-      drawCorner(x + bw / 2, y + s - bw / 2, 1, -1);
-      drawCorner(x + s - bw / 2, y + s - bw / 2, -1, -1);
-    }
-  },
-
-  {
-    id: 'ef-bracket',
-    label: 'Bracket',
-    group: 'Modern',
-    draw(ctx, x, y, s, color) {
-      const bw = s / 7;
-      const arm = s * 0.35;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = bw;
-      ctx.lineCap = 'square';
-      const corners = [
-        [x + bw / 2, y + arm, x + bw / 2, y + bw / 2, x + arm, y + bw / 2],
-        [x + s - arm, y + bw / 2, x + s - bw / 2, y + bw / 2, x + s - bw / 2, y + arm],
-        [x + bw / 2, y + s - arm, x + bw / 2, y + s - bw / 2, x + arm, y + s - bw / 2],
-        [x + s - arm, y + s - bw / 2, x + s - bw / 2, y + s - bw / 2, x + s - bw / 2, y + s - arm],
-      ];
-      corners.forEach(([x1, y1, x2, y2, x3, y3]) => {
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.lineTo(x3, y3);
-        ctx.stroke();
-      });
-    }
-  },
-
-  {
-    id: 'ef-diamond-frame',
-    label: 'Diamond Frame',
-    group: 'Modern',
-    draw(ctx, x, y, s, color) {
-      const bw = s / 7;
+      const t = s / 7;
       const cx = x + s / 2, cy = y + s / 2;
-      const or = s * 0.50, ir = s * 0.36;
+      const ro = s / 2 - 1;
+      const ri = s / 2 - t - 1;
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.moveTo(cx, cy - or); ctx.lineTo(cx + or, cy);
-      ctx.lineTo(cx, cy + or); ctx.lineTo(cx - or, cy);
+      ctx.arc(cx, cy, ro, 0, Math.PI * 2);
+      ctx.arc(cx, cy, ri, 0, Math.PI * 2, true);
+      ctx.fill('evenodd');
+    }
+  },
+  {
+    id: 'ef-thick',
+    name: 'Thick',
+    draw(ctx, x, y, s, color) {
+      const t = s / 5; // thicker border
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, s, t);
+      ctx.fillRect(x, y + s - t, s, t);
+      ctx.fillRect(x, y + t, t, s - t * 2);
+      ctx.fillRect(x + s - t, y + t, t, s - t * 2);
+    }
+  },
+  {
+    id: 'ef-double',
+    name: 'Double',
+    draw(ctx, x, y, s, color) {
+      const t1 = s / 14; // thin outer
+      const t2 = s / 14; // thin inner
+      const gap = s / 14;
+      ctx.fillStyle = color;
+      // Outer ring
+      const drawRing = (ox, oy, os, th) => {
+        ctx.fillRect(ox, oy, os, th);
+        ctx.fillRect(ox, oy + os - th, os, th);
+        ctx.fillRect(ox, oy + th, th, os - th * 2);
+        ctx.fillRect(ox + os - th, oy + th, th, os - th * 2);
+      };
+      drawRing(x, y, s, t1);
+      drawRing(x + t1 + gap, y + t1 + gap, s - (t1 + gap) * 2, t2);
+    }
+  },
+  {
+    id: 'ef-cut-corner',
+    name: 'Cut Corner',
+    draw(ctx, x, y, s, color) {
+      const t = s / 7;
+      const cut = s * 0.22;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      // Outer polygon with cut corners
+      ctx.moveTo(x + cut, y);
+      ctx.lineTo(x + s - cut, y);
+      ctx.lineTo(x + s, y + cut);
+      ctx.lineTo(x + s, y + s - cut);
+      ctx.lineTo(x + s - cut, y + s);
+      ctx.lineTo(x + cut, y + s);
+      ctx.lineTo(x, y + s - cut);
+      ctx.lineTo(x, y + cut);
       ctx.closePath();
-      ctx.moveTo(cx, cy - ir); ctx.lineTo(cx + ir, cy);
-      ctx.lineTo(cx, cy + ir); ctx.lineTo(cx - ir, cy);
+      // Inner cutout
+      const ix = x + t, iy = y + t, is = s - t * 2, icut = cut * 0.7;
+      ctx.moveTo(ix + icut, iy);
+      ctx.lineTo(ix + is - icut, iy);
+      ctx.lineTo(ix + is, iy + icut);
+      ctx.lineTo(ix + is, iy + is - icut);
+      ctx.lineTo(ix + is - icut, iy + is);
+      ctx.lineTo(ix + icut, iy + is);
+      ctx.lineTo(ix, iy + is - icut);
+      ctx.lineTo(ix, iy + icut);
       ctx.closePath();
       ctx.fill('evenodd');
     }
   },
-
-  // ── Premium ────────────────────────────────────────────
-
   {
-    id: 'ef-double-line',
-    label: 'Double Line',
-    group: 'Premium',
+    id: 'ef-leaf',
+    name: 'Leaf',
     draw(ctx, x, y, s, color) {
-      const bw = s / 9;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = bw * 0.7;
-      const d = [0.5, bw * 1.6];
-      d.forEach(offset => {
-        ctx.beginPath();
-        ctx.strokeRect(x + bw * 0.5 + offset, y + bw * 0.5 + offset,
-                       s - bw - offset * 2, s - bw - offset * 2);
-      });
-    }
-  },
-
-  {
-    id: 'ef-shield',
-    label: 'Shield',
-    group: 'Premium',
-    draw(ctx, x, y, s, color) {
-      const bw = s / 7;
+      const t = s / 7;
+      const r = s * 0.4;
       ctx.fillStyle = color;
-      const px = x + bw / 2, py = y + bw / 2, pw = s - bw, ph = s - bw;
       ctx.beginPath();
-      ctx.moveTo(px + pw / 2, py);
-      ctx.lineTo(px + pw, py + ph * 0.35);
-      ctx.quadraticCurveTo(px + pw, py + ph * 0.75, px + pw / 2, py + ph);
-      ctx.quadraticCurveTo(px, py + ph * 0.75, px, py + ph * 0.35);
-      ctx.closePath();
-      ctx.stroke();
-
-      const ix = x + bw * 1.8, iy = y + bw * 1.8, iw = s - bw * 3.6, ih = s - bw * 3.6;
-      ctx.beginPath();
-      ctx.moveTo(ix + iw / 2, iy);
-      ctx.lineTo(ix + iw, iy + ih * 0.35);
-      ctx.quadraticCurveTo(ix + iw, iy + ih * 0.75, ix + iw / 2, iy + ih);
-      ctx.quadraticCurveTo(ix, iy + ih * 0.75, ix, iy + ih * 0.35);
-      ctx.closePath();
-      // just outer stroke
-      ctx.lineWidth = bw;
-      ctx.stroke();
+      ctx.moveTo(x + s / 2, y);
+      ctx.quadraticCurveTo(x + s, y, x + s, y + s / 2);
+      ctx.quadraticCurveTo(x + s, y + s, x + s / 2, y + s);
+      ctx.quadraticCurveTo(x, y + s, x, y + s / 2);
+      ctx.quadraticCurveTo(x, y, x + s / 2, y);
+      // Inner cutout
+      ctx.moveTo(x + s / 2, y + t);
+      ctx.quadraticCurveTo(x + s - t, y + t, x + s - t, y + s / 2);
+      ctx.quadraticCurveTo(x + s - t, y + s - t, x + s / 2, y + s - t);
+      ctx.quadraticCurveTo(x + t, y + s - t, x + t, y + s / 2);
+      ctx.quadraticCurveTo(x + t, y + t, x + s / 2, y + t);
+      ctx.fill('evenodd');
     }
   },
-
   {
-    id: 'ef-leaf-corner',
-    label: 'Leaf Corner',
-    group: 'Premium',
+    id: 'ef-bracket',
+    name: 'Bracket',
     draw(ctx, x, y, s, color) {
-      const bw = s / 7;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = bw;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      const r = s * 0.38;
-      // top-right curved
-      ctx.moveTo(x + bw / 2, y + bw / 2);
-      ctx.lineTo(x + s - r, y + bw / 2);
-      ctx.arcTo(x + s - bw / 2, y + bw / 2, x + s - bw / 2, y + r, r * 0.8);
-      ctx.lineTo(x + s - bw / 2, y + s - bw / 2);
-      ctx.lineTo(x + bw / 2, y + s - bw / 2);
-      ctx.lineTo(x + bw / 2, y + bw / 2);
-      ctx.stroke();
+      const t = s / 7;
+      const arm = s * 0.38; // arm length
+      ctx.fillStyle = color;
+      // 4 L-shaped corners
+      const corners = [
+        [x, y], [x + s - arm, y], [x, y + s - arm], [x + s - arm, y + s - arm]
+      ];
+      const dirs = [
+        [1, 1], [-1, 1], [1, -1], [-1, -1]
+      ];
+      corners.forEach(([cx, cy], i) => {
+        const [dx, dy] = dirs[i];
+        ctx.fillRect(cx, cy, arm * dx || t, t * dy || arm);
+        // Fix signs
+      });
+      // Simpler approach: 4 L shapes
+      ctx.clearRect(0, 0, 0, 0); // reset
+      ctx.fillStyle = color;
+      // Top-left
+      ctx.fillRect(x, y, arm, t);
+      ctx.fillRect(x, y, t, arm);
+      // Top-right
+      ctx.fillRect(x + s - arm, y, arm, t);
+      ctx.fillRect(x + s - t, y, t, arm);
+      // Bottom-left
+      ctx.fillRect(x, y + s - t, arm, t);
+      ctx.fillRect(x, y + s - arm, t, arm);
+      // Bottom-right
+      ctx.fillRect(x + s - arm, y + s - t, arm, t);
+      ctx.fillRect(x + s - t, y + s - arm, t, arm);
     }
   },
-
   {
-    id: 'ef-sharp-round',
-    label: 'Sharp Round',
-    group: 'Premium',
+    id: 'ef-sharp-in',
+    name: 'Sharp In',
     draw(ctx, x, y, s, color) {
-      const bw = s / 7;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = bw;
+      const t = s / 7;
+      const cut = s * 0.18;
+      ctx.fillStyle = color;
+      // Star-like outer with inward points at corners
       ctx.beginPath();
-      const r = s * 0.30;
-      ctx.moveTo(x + bw / 2 + r, y + bw / 2);
-      ctx.lineTo(x + s - bw / 2, y + bw / 2);
-      ctx.lineTo(x + s - bw / 2, y + s - bw / 2 - r);
-      ctx.arcTo(x + s - bw / 2, y + s - bw / 2, x + s - bw / 2 - r, y + s - bw / 2, r);
-      ctx.lineTo(x + bw / 2, y + s - bw / 2);
-      ctx.lineTo(x + bw / 2, y + bw / 2 + r);
-      ctx.arcTo(x + bw / 2, y + bw / 2, x + bw / 2 + r, y + bw / 2, r);
-      ctx.stroke();
+      ctx.moveTo(x + s / 2, y);
+      ctx.lineTo(x + s - cut, y + cut);
+      ctx.lineTo(x + s, y + s / 2);
+      ctx.lineTo(x + s - cut, y + s - cut);
+      ctx.lineTo(x + s / 2, y + s);
+      ctx.lineTo(x + cut, y + s - cut);
+      ctx.lineTo(x, y + s / 2);
+      ctx.lineTo(x + cut, y + cut);
+      ctx.closePath();
+      // Inner
+      const ix = x + t, iy = y + t, is = s - t * 2, icut = cut * 0.6;
+      ctx.moveTo(ix + is / 2, iy);
+      ctx.lineTo(ix + is - icut, iy + icut);
+      ctx.lineTo(ix + is, iy + is / 2);
+      ctx.lineTo(ix + is - icut, iy + is - icut);
+      ctx.lineTo(ix + is / 2, iy + is);
+      ctx.lineTo(ix + icut, iy + is - icut);
+      ctx.lineTo(ix, iy + is / 2);
+      ctx.lineTo(ix + icut, iy + icut);
+      ctx.closePath();
+      ctx.fill('evenodd');
     }
   },
-
+  {
+    id: 'ef-hexborder',
+    name: 'Hexagon',
+    draw(ctx, x, y, s, color) {
+      const t = s / 7;
+      const cx = x + s / 2, cy = y + s / 2;
+      const ro = s / 2 - 1, ri = ro - t;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (i * Math.PI) / 3 - Math.PI / 6;
+        if (i === 0) ctx.moveTo(cx + ro * Math.cos(a), cy + ro * Math.sin(a));
+        else ctx.lineTo(cx + ro * Math.cos(a), cy + ro * Math.sin(a));
+      }
+      ctx.closePath();
+      ctx.moveTo(cx + ri, cy);
+      for (let i = 0; i < 6; i++) {
+        const a = (i * Math.PI) / 3 - Math.PI / 6;
+        if (i === 0) ctx.moveTo(cx + ri * Math.cos(a), cy + ri * Math.sin(a));
+        else ctx.lineTo(cx + ri * Math.cos(a), cy + ri * Math.sin(a));
+      }
+      ctx.closePath();
+      ctx.fill('evenodd');
+    }
+  },
+  {
+    id: 'ef-diamond-frame',
+    name: 'Diamond',
+    draw(ctx, x, y, s, color) {
+      const t = s / 7;
+      const cx = x + s / 2, cy = y + s / 2;
+      const ro = s / 2 - 1, ri = ro - t;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - ro);
+      ctx.lineTo(cx + ro, cy);
+      ctx.lineTo(cx, cy + ro);
+      ctx.lineTo(cx - ro, cy);
+      ctx.closePath();
+      ctx.moveTo(cx, cy - ri);
+      ctx.lineTo(cx + ri, cy);
+      ctx.lineTo(cx, cy + ri);
+      ctx.lineTo(cx - ri, cy);
+      ctx.closePath();
+      ctx.fill('evenodd');
+    }
+  },
+  {
+    id: 'ef-round-thick',
+    name: 'Round Thick',
+    draw(ctx, x, y, s, color) {
+      const t = s / 5;
+      const r = s * 0.28;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.roundRect(x, y, s, s, r);
+      ctx.roundRect(x + t, y + t, s - t * 2, s - t * 2, r * 0.45);
+      ctx.fill('evenodd');
+    }
+  },
 ];
-
-function getEyeFrame(id) {
-  return EYE_FRAMES.find(e => e.id === id) || EYE_FRAMES[0];
-}

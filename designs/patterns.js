@@ -1,55 +1,55 @@
 // =========================================================
-// patterns.js — QR Dot Pattern Library
-// QR Prism v2.5 — Premium Patterns
+// PATTERNS.JS — QR Prism v2.7
+// 20 Premium QR Dot Patterns
+// Each: { id, name, draw(ctx, x, y, size, color) }
+// Author: Muhtasim Rahman (Turzo) · https://mdturzo.odoo.com
 // =========================================================
 
 const PATTERNS = [
   {
     id: 'pat-square',
     name: 'Square',
-    draw(ctx, x, y, size, color) {
+    draw(ctx, x, y, s, color) {
       ctx.fillStyle = color;
-      ctx.fillRect(x, y, size, size);
+      ctx.fillRect(x, y, s, s);
     }
   },
   {
     id: 'pat-round',
     name: 'Rounded',
-    draw(ctx, x, y, size, color) {
-      const r = size * 0.32;
-      const g = size * 0.04; // gap for seamless join
+    draw(ctx, x, y, s, color) {
+      const r = s * 0.35;
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.roundRect(x + g, y + g, size - g*2, size - g*2, r);
+      ctx.roundRect(x + 0.5, y + 0.5, s - 1, s - 1, r);
       ctx.fill();
     }
   },
   {
     id: 'pat-circle',
     name: 'Circle',
-    draw(ctx, x, y, size, color) {
+    draw(ctx, x, y, s, color) {
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(x + size / 2, y + size / 2, size * 0.44, 0, Math.PI * 2);
+      ctx.arc(x + s / 2, y + s / 2, s * 0.45, 0, Math.PI * 2);
       ctx.fill();
     }
   },
   {
     id: 'pat-dot',
     name: 'Dot',
-    draw(ctx, x, y, size, color) {
+    draw(ctx, x, y, s, color) {
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(x + size / 2, y + size / 2, size * 0.3, 0, Math.PI * 2);
+      ctx.arc(x + s / 2, y + s / 2, s * 0.3, 0, Math.PI * 2);
       ctx.fill();
     }
   },
   {
     id: 'pat-diamond',
     name: 'Diamond',
-    draw(ctx, x, y, size, color) {
-      const cx = x + size / 2, cy = y + size / 2;
-      const h = size * 0.46;
+    draw(ctx, x, y, s, color) {
+      const cx = x + s / 2, cy = y + s / 2, h = s * 0.48;
       ctx.fillStyle = color;
       ctx.beginPath();
       ctx.moveTo(cx, cy - h);
@@ -61,191 +61,135 @@ const PATTERNS = [
     }
   },
   {
-    id: 'pat-star',
-    name: 'Star',
-    draw(ctx, x, y, size, color) {
-      const cx = x + size / 2, cy = y + size / 2;
-      const or = size * 0.44, ir = size * 0.19;
-      const spikes = 5;
+    id: 'pat-squircle',
+    name: 'Squircle',
+    draw(ctx, x, y, s, color) {
+      const r = s * 0.48;
+      const cx = x + s / 2, cy = y + s / 2;
       ctx.fillStyle = color;
       ctx.beginPath();
-      for (let i = 0; i < spikes * 2; i++) {
-        const r = i % 2 === 0 ? or : ir;
-        const angle = (i * Math.PI / spikes) - Math.PI / 2;
-        i === 0 ? ctx.moveTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle))
-                : ctx.lineTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
-      }
-      ctx.closePath();
+      ctx.roundRect(x + 1, y + 1, s - 2, s - 2, r * 0.55);
       ctx.fill();
     }
   },
   {
     id: 'pat-hexagon',
     name: 'Hexagon',
-    draw(ctx, x, y, size, color) {
-      const cx = x + size / 2, cy = y + size / 2;
-      const r = size * 0.46;
+    draw(ctx, x, y, s, color) {
+      const cx = x + s / 2, cy = y + s / 2, r = s * 0.46;
       ctx.fillStyle = color;
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
-        const angle = (i * Math.PI / 3) - Math.PI / 6;
-        i === 0 ? ctx.moveTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle))
-                : ctx.lineTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
+        const a = (i * Math.PI) / 3 - Math.PI / 6;
+        if (i === 0) ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+        else ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
       }
       ctx.closePath();
       ctx.fill();
     }
   },
   {
-    id: 'pat-leaf',
-    name: 'Leaf',
-    draw(ctx, x, y, size, color) {
-      const g = size * 0.06;
-      const s = size - g * 2;
+    id: 'pat-star',
+    name: 'Star',
+    draw(ctx, x, y, s, color) {
+      const cx = x + s / 2, cy = y + s / 2;
+      const ro = s * 0.46, ri = s * 0.22;
+      const spikes = 5;
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.moveTo(x + g, y + g + s * 0.5);
-      ctx.quadraticCurveTo(x + g, y + g, x + g + s * 0.5, y + g);
-      ctx.quadraticCurveTo(x + g + s, y + g, x + g + s, y + g + s * 0.5);
-      ctx.quadraticCurveTo(x + g + s, y + g + s, x + g + s * 0.5, y + g + s);
-      ctx.quadraticCurveTo(x + g, y + g + s, x + g, y + g + s * 0.5);
+      for (let i = 0; i < spikes * 2; i++) {
+        const r = i % 2 === 0 ? ro : ri;
+        const a = (i * Math.PI) / spikes - Math.PI / 2;
+        if (i === 0) ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+        else ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+      }
       ctx.closePath();
-      ctx.fill();
-    }
-  },
-  {
-    id: 'pat-squircle',
-    name: 'Squircle',
-    draw(ctx, x, y, size, color) {
-      const r = size * 0.46;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.roundRect(x + size * 0.05, y + size * 0.05, size * 0.9, size * 0.9, size * 0.24);
       ctx.fill();
     }
   },
   {
     id: 'pat-cross',
-    name: 'Plus',
-    draw(ctx, x, y, size, color) {
-      const t = size * 0.3;
-      const o = (size - t) / 2;
+    name: 'Cross',
+    draw(ctx, x, y, s, color) {
+      const t = s * 0.28;
+      const c = s * 0.36;
       ctx.fillStyle = color;
-      ctx.fillRect(x + o, y, t, size);
-      ctx.fillRect(x, y + o, size, t);
+      ctx.fillRect(x + c, y, t, s);
+      ctx.fillRect(x, y + c, s, t);
+    }
+  },
+  {
+    id: 'pat-leaf',
+    name: 'Leaf',
+    draw(ctx, x, y, s, color) {
+      const cx = x + s / 2, cy = y + s / 2;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(cx, y + 1);
+      ctx.quadraticCurveTo(x + s - 1, y + 1, x + s - 1, cy);
+      ctx.quadraticCurveTo(x + s - 1, y + s - 1, cx, y + s - 1);
+      ctx.quadraticCurveTo(x + 1, y + s - 1, x + 1, cy);
+      ctx.quadraticCurveTo(x + 1, y + 1, cx, y + 1);
+      ctx.fill();
+    }
+  },
+  {
+    id: 'pat-bars-h',
+    name: 'H. Bars',
+    draw(ctx, x, y, s, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x + 1, y + s * 0.1, s - 2, s * 0.32);
+      ctx.fillRect(x + 1, y + s * 0.58, s - 2, s * 0.32);
+    }
+  },
+  {
+    id: 'pat-bars-v',
+    name: 'V. Bars',
+    draw(ctx, x, y, s, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x + s * 0.1, y + 1, s * 0.32, s - 2);
+      ctx.fillRect(x + s * 0.58, y + 1, s * 0.32, s - 2);
     }
   },
   {
     id: 'pat-ring',
     name: 'Ring',
-    draw(ctx, x, y, size, color) {
-      const cx = x + size / 2, cy = y + size / 2;
+    draw(ctx, x, y, s, color) {
+      const cx = x + s / 2, cy = y + s / 2;
+      const ro = s * 0.44, ri = s * 0.22;
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(cx, cy, size * 0.44, 0, Math.PI * 2);
-      ctx.arc(cx, cy, size * 0.22, 0, Math.PI * 2, true);
+      ctx.arc(cx, cy, ro, 0, Math.PI * 2);
+      ctx.arc(cx, cy, ri, 0, Math.PI * 2, true);
       ctx.fill('evenodd');
     }
   },
   {
-    id: 'pat-bar-h',
-    name: 'Bar H',
-    draw(ctx, x, y, size, color) {
-      const h = size * 0.38;
-      const oy = (size - h) / 2;
+    id: 'pat-sharp',
+    name: 'Sharp',
+    draw(ctx, x, y, s, color) {
       ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.roundRect(x + size * 0.04, y + oy, size * 0.92, h, h * 0.45);
-      ctx.fill();
+      ctx.fillRect(x, y, s, s);
+      // Cut corners
+      const cut = s * 0.3;
+      ctx.clearRect(x, y, cut, cut);
+      ctx.clearRect(x + s - cut, y, cut, cut);
+      ctx.clearRect(x, y + s - cut, cut, cut);
+      ctx.clearRect(x + s - cut, y + s - cut, cut, cut);
     }
   },
   {
-    id: 'pat-bar-v',
-    name: 'Bar V',
-    draw(ctx, x, y, size, color) {
-      const w = size * 0.38;
-      const ox = (size - w) / 2;
+    id: 'pat-crystal',
+    name: 'Crystal',
+    draw(ctx, x, y, s, color) {
+      const cx = x + s / 2, cy = y + s / 2, h = s * 0.44;
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.roundRect(x + ox, y + size * 0.04, w, size * 0.92, w * 0.45);
-      ctx.fill();
-    }
-  },
-  {
-    id: 'pat-triangle',
-    name: 'Triangle',
-    draw(ctx, x, y, size, color) {
-      const cx = x + size / 2;
-      const m = size * 0.08;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(cx, y + m);
-      ctx.lineTo(x + size - m, y + size - m);
-      ctx.lineTo(x + m, y + size - m);
-      ctx.closePath();
-      ctx.fill();
-    }
-  },
-  {
-    id: 'pat-rounded-cross',
-    name: 'Rounded+',
-    draw(ctx, x, y, size, color) {
-      const t = size * 0.3;
-      const o = (size - t) / 2;
-      const r = t / 2;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.roundRect(x + o, y + size * 0.04, t, size * 0.92, r);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.roundRect(x + size * 0.04, y + o, size * 0.92, t, r);
-      ctx.fill();
-    }
-  },
-  {
-    id: 'pat-octagon',
-    name: 'Octagon',
-    draw(ctx, x, y, size, color) {
-      const cx = x + size / 2, cy = y + size / 2;
-      const r = size * 0.44;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      for (let i = 0; i < 8; i++) {
-        const angle = (i * Math.PI / 4) - Math.PI / 8;
-        i === 0 ? ctx.moveTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle))
-                : ctx.lineTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
-      }
-      ctx.closePath();
-      ctx.fill();
-    }
-  },
-  {
-    id: 'pat-kite',
-    name: 'Kite',
-    draw(ctx, x, y, size, color) {
-      const cx = x + size / 2, cy = y + size / 2;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(cx, y + size * 0.08);
-      ctx.lineTo(x + size * 0.88, cy + size * 0.1);
-      ctx.lineTo(cx, y + size * 0.92);
-      ctx.lineTo(x + size * 0.18, cy);
-      ctx.closePath();
-      ctx.fill();
-    }
-  },
-  {
-    id: 'pat-shield',
-    name: 'Shield',
-    draw(ctx, x, y, size, color) {
-      const g = size * 0.08;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(x + g, y + g);
-      ctx.lineTo(x + size - g, y + g);
-      ctx.lineTo(x + size - g, y + size * 0.55);
-      ctx.quadraticCurveTo(x + size - g, y + size - g, x + size / 2, y + size - g);
-      ctx.quadraticCurveTo(x + g, y + size - g, x + g, y + size * 0.55);
+      ctx.moveTo(cx, cy - h);
+      ctx.lineTo(cx + h * 0.65, cy);
+      ctx.lineTo(cx + h * 0.4, cy + h);
+      ctx.lineTo(cx - h * 0.4, cy + h);
+      ctx.lineTo(cx - h * 0.65, cy);
       ctx.closePath();
       ctx.fill();
     }
@@ -253,37 +197,82 @@ const PATTERNS = [
   {
     id: 'pat-arrow',
     name: 'Arrow',
-    draw(ctx, x, y, size, color) {
-      const m = size * 0.1;
-      const mid = size * 0.45;
+    draw(ctx, x, y, s, color) {
+      const cx = x + s / 2, cy = y + s / 2;
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.moveTo(x + m, y + mid);
-      ctx.lineTo(x + size * 0.55, y + m);
-      ctx.lineTo(x + size * 0.55, y + size * 0.28);
-      ctx.lineTo(x + size - m, y + size / 2);
-      ctx.lineTo(x + size * 0.55, y + size - size * 0.28);
-      ctx.lineTo(x + size * 0.55, y + size - m);
-      ctx.lineTo(x + m, y + size - mid);
+      ctx.moveTo(x + s * 0.8, cy);
+      ctx.lineTo(cx, y + s * 0.15);
+      ctx.lineTo(cx, y + s * 0.4);
+      ctx.lineTo(x + s * 0.2, y + s * 0.4);
+      ctx.lineTo(x + s * 0.2, y + s * 0.6);
+      ctx.lineTo(cx, y + s * 0.6);
+      ctx.lineTo(cx, y + s * 0.85);
       ctx.closePath();
       ctx.fill();
     }
   },
   {
-    id: 'pat-flower',
-    name: 'Flower',
-    draw(ctx, x, y, size, color) {
-      const cx = x + size / 2, cy = y + size / 2;
-      const r1 = size * 0.25, r2 = size * 0.14;
+    id: 'pat-heart',
+    name: 'Heart',
+    draw(ctx, x, y, s, color) {
+      const cx = x + s / 2, t = y + s * 0.2;
+      const bx = s * 0.25;
       ctx.fillStyle = color;
-      for (let i = 0; i < 4; i++) {
-        const a = i * Math.PI / 2;
-        ctx.beginPath();
-        ctx.arc(cx + r1 * Math.cos(a), cy + r1 * Math.sin(a), r2, 0, Math.PI * 2);
-        ctx.fill();
-      }
       ctx.beginPath();
-      ctx.arc(cx, cy, r2 * 1.1, 0, Math.PI * 2);
+      ctx.moveTo(cx, y + s * 0.85);
+      ctx.bezierCurveTo(x + s * 0.08, y + s * 0.65, x, y + s * 0.45, cx - bx, t);
+      ctx.arc(cx - bx * 0.5, t, bx * 0.5, Math.PI, 0);
+      ctx.arc(cx + bx * 0.5, t, bx * 0.5, Math.PI, 0);
+      ctx.bezierCurveTo(x + s, y + s * 0.45, x + s * 0.92, y + s * 0.65, cx, y + s * 0.85);
+      ctx.closePath();
+      ctx.fill();
+    }
+  },
+  {
+    id: 'pat-clover',
+    name: 'Clover',
+    draw(ctx, x, y, s, color) {
+      const cx = x + s / 2, cy = y + s / 2, r = s * 0.26;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(cx,     cy - r, r, 0, Math.PI * 2);
+      ctx.arc(cx + r, cy,     r, 0, Math.PI * 2);
+      ctx.arc(cx,     cy + r, r, 0, Math.PI * 2);
+      ctx.arc(cx - r, cy,     r, 0, Math.PI * 2);
+      ctx.fill();
+      // Center square
+      ctx.fillRect(cx - r * 0.7, cy - r * 0.7, r * 1.4, r * 1.4);
+    }
+  },
+  {
+    id: 'pat-triangle',
+    name: 'Triangle',
+    draw(ctx, x, y, s, color) {
+      const cx = x + s / 2;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(cx, y + 1);
+      ctx.lineTo(x + s - 1, y + s - 1);
+      ctx.lineTo(x + 1, y + s - 1);
+      ctx.closePath();
+      ctx.fill();
+    }
+  },
+  {
+    id: 'pat-plus-r',
+    name: 'Plus Round',
+    draw(ctx, x, y, s, color) {
+      const r = s * 0.25;
+      const t = s * 0.3;
+      ctx.fillStyle = color;
+      // Horizontal bar
+      ctx.beginPath();
+      ctx.roundRect(x + 1, y + t, s - 2, s - t * 2, r * 0.6);
+      ctx.fill();
+      // Vertical bar
+      ctx.beginPath();
+      ctx.roundRect(x + t, y + 1, s - t * 2, s - 2, r * 0.6);
       ctx.fill();
     }
   },
