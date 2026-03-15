@@ -1,109 +1,52 @@
 // =========================================================
-// REPORT.JS — QR Prism v2.7
-// Bug report form with images, localStorage save
+// REPORT.JS — QR Prism v2.8
+// Bug report form orchestration
+// Core logic: submitReport(), handleReportImages(), clearReportForm()
+//   → lives in ui.js (report form UI) and firebase.js (submitFullReport)
+// This file provides a clean entry-point + any extra helpers
 // Author: Muhtasim Rahman (Turzo) · https://mdturzo.odoo.com
 // =========================================================
 
-let _reportType   = 'bug';
-let _reportImages = []; // base64 data URLs
+// Report type state (shared with ui.js via global)
+// _reportType and _reportFiles are defined in ui.js
 
-function selectReportType(btn, type) {
-  _reportType = type;
-  document.querySelectorAll('.rtype-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-}
-
-function handleReportImages(input) {
-  const files = Array.from(input.files || []);
-  const remaining = 8 - _reportImages.length;
-  files.slice(0, remaining).forEach(file => {
-    if (file.size > 5*1024*1024) { showToast(`${file.name} too large (max 5 MB)`, 'error'); return; }
-    const reader = new FileReader();
-    reader.onload = e => {
-      _reportImages.push(e.target.result);
-      renderReportImages();
-    };
-    reader.readAsDataURL(file);
-  });
-  input.value = '';
-}
-
-function renderReportImages() {
-  const grid = document.getElementById('report-img-grid');
-  if (!grid) return;
-  grid.innerHTML = '';
-
-  _reportImages.forEach((src, i) => {
-    const wrap = document.createElement('div');
-    wrap.className = 'ri-wrap';
-    wrap.innerHTML = `
-      <img src="${src}" class="report-img-thumb" alt="screenshot ${i+1}">
-      <div class="ri-remove" onclick="removeReportImage(${i})">✕</div>`;
-    grid.appendChild(wrap);
-  });
-
-  if (_reportImages.length < 8) {
-    const addBtn = document.createElement('div');
-    addBtn.className = 'report-img-add';
-    addBtn.innerHTML = '<i class="fa-solid fa-plus"></i><span>Add image</span>';
-    addBtn.onclick = () => document.getElementById('report-img-input')?.click();
-    grid.appendChild(addBtn);
-  }
-}
-
-function removeReportImage(idx) {
-  _reportImages.splice(idx, 1);
-  renderReportImages();
-}
-
-function submitReport() {
-  const name = document.getElementById('report-name')?.value.trim();
-  const desc = document.getElementById('report-desc')?.value.trim();
-  if (!desc) { showToast('Please describe the issue', 'error'); return; }
-
-  const report = {
-    id:         Date.now(),
-    type:       _reportType,
-    name:       name || 'Anonymous',
-    email:      document.getElementById('report-email')?.value.trim() || '',
-    desc,
-    imageCount: _reportImages.length,
-    date:       new Date().toISOString(),
-    appVersion: 'v2.7',
-    ua:         navigator.userAgent,
-  };
-
+// ── Report page pre-fill from URL params ──────────────────────
+// e.g. index.html?mode=report&type=feature  → auto-selects type
+(function _checkReportURLParam() {
   try {
-    const prev = JSON.parse(localStorage.getItem('qrp_reports') || '[]');
-    prev.push(report);
-    localStorage.setItem('qrp_reports', JSON.stringify(prev));
-  } catch(e) {}
+    const params = new URLSearchParams(window.location.search);
+    const mode   = params.get('mode');
+    const type   = params.get('type'); // bug | ui | feature | performance
+    if (mode === 'report' && type) {
+      // Defer until DOMContentLoaded so buttons are rendered
+      window.addEventListener('DOMContentLoaded', () => {
+        const btn = document.querySelector(`.rtype-btn[data-rtype="${type}"]`);
+        if (btn && typeof selectReportType === 'function') {
+          selectReportType(btn, type);
+        }
+      });
+    }
+  } catch {}
+})();
 
-  showToast('Report submitted! Thank you 🙏', 'success', 3500);
+// ── Report status labels (used by profile page issues list) ──
+const REPORT_STATUS = {
+  pending:   { label: 'Pending',   color: 'var(--warning)', icon: 'fa-solid fa-clock' },
+  reviewing: { label: 'Reviewing', color: 'var(--info)',    icon: 'fa-solid fa-magnifying-glass' },
+  resolved:  { label: 'Resolved',  color: 'var(--success)', icon: 'fa-solid fa-circle-check' },
+  rejected:  { label: 'Rejected',  color: 'var(--danger)',  icon: 'fa-solid fa-circle-xmark' },
+};
 
-  // Clear form
-  ['report-name','report-email','report-desc'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
-  });
-  _reportImages = [];
-  renderReportImages();
-  _reportType = 'bug';
-  document.querySelectorAll('.rtype-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+function getReportStatusInfo(status) {
+  return REPORT_STATUS[status] || REPORT_STATUS.pending;
 }
 
-function clearReportForm() {
-  showConfirm({
-    title: 'Clear Form',
-    msg: 'Clear all report fields?',
-    okLabel: 'Clear', okClass: 'btn-danger',
-    onConfirm: () => {
-      ['report-name','report-email','report-desc'].forEach(id => {
-        const el = document.getElementById(id); if (el) el.value = '';
-      });
-      _reportImages = [];
-      renderReportImages();
-      _reportType = 'bug';
-      document.querySelectorAll('.rtype-btn').forEach((b,i) => b.classList.toggle('active', i===0));
-    }
-  });
+// ── Open report page and link back to report list ─────────────
+function goToReportList() {
+  switchMode('profile');
+  // After render, scroll to issues section
+  setTimeout(() => {
+    document.getElementById('profile-issues-list')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 400);
 }

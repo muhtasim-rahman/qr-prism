@@ -1,284 +1,452 @@
 // =========================================================
-// SETTINGS.JS — QR Prism v2.7
-// Settings page rendering + full persistence
+// SETTINGS.JS — QR Prism v2.8
+// Full settings page: appearance, QR defaults, behavior,
+// data/storage, about, PWA, Firebase account section
 // Author: Muhtasim Rahman (Turzo) · https://mdturzo.odoo.com
 // =========================================================
 
+// ══════════════════════════════════════════════════════════
+// setSetting  — update one SETTINGS key, persist, apply
+// ══════════════════════════════════════════════════════════
+function setSetting(key, value) {
+  SETTINGS[key] = value;
+  saveSettingsData();
+
+  // Live-apply certain settings immediately
+  switch (key) {
+    case 'theme':
+      applyTheme(value);
+      updateThemeIcons(document.documentElement.getAttribute('data-theme'));
+      renderPatternGrids();
+      renderFrameGrids();
+      break;
+    case 'accentColor':
+      applyAccent(value);
+      break;
+    case 'defaultSize':
+      S.size = value;
+      const sizeEl = document.getElementById('qr-size');
+      if (sizeEl) sizeEl.value = value;
+      break;
+    case 'defaultEC':
+      S.ec = value;
+      document.querySelectorAll('.ec-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.ec === value));
+      break;
+    case 'animateUI':
+      document.documentElement.style.setProperty(
+        '--dur-normal', value ? '240ms' : '0ms');
+      document.documentElement.style.setProperty(
+        '--dur-slow',   value ? '360ms' : '0ms');
+      break;
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// RENDER SETTINGS PAGE
+// ══════════════════════════════════════════════════════════
 function renderSettings() {
   const container = document.getElementById('settings-content');
   if (!container) return;
 
-  const pAll  = JSON.parse(localStorage.getItem('qrp_projects') || '[]').length;
-  const tAll  = JSON.parse(localStorage.getItem('qrp_templates') || '[]').length;
-  const rAll  = JSON.parse(localStorage.getItem('qrp_reports') || '[]').length;
-  const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  const projCount = JSON.parse(localStorage.getItem('qrp_projects') || '[]').length;
+  const tmplCount = JSON.parse(localStorage.getItem('qrp_templates') || '[]').length;
+  const theme     = document.documentElement.getAttribute('data-theme') || 'dark';
+  const user      = (typeof FB_USER !== 'undefined') ? FB_USER : null;
+  const cached    = (typeof getCachedUserProfile === 'function') ? getCachedUserProfile() : null;
 
   container.innerHTML = '';
 
-  // PWA Banner (first)
-  if (typeof renderPWABanner === 'function') {
-    container.appendChild(renderPWABanner());
-  }
+  // ── PWA Install Banner ──
+  container.appendChild(buildPWABanner());
 
-  container.innerHTML += `
-
-  <!-- Appearance -->
-  <div class="settings-section">
-    <div class="settings-section-title"><i class="fa-solid fa-palette"></i> Appearance</div>
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label">Theme</div><div class="stg-sub">Light, dark, or follow system</div></div>
-      <div class="seg-ctrl" style="display:flex;gap:4px;background:var(--surface2);padding:3px;border-radius:9px;">
-        ${['dark','light','system'].map(t => `<button class="btn btn-sm${SETTINGS.theme === t ? ' btn-primary' : ' btn-ghost'}" style="padding:5px 10px;font-size:.74rem;"
-          onclick="setSetting('theme','${t}');renderSettings();">${t.charAt(0).toUpperCase()+t.slice(1)}</button>`).join('')}
-      </div>
-    </div>
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label">Accent Color</div><div class="stg-sub">Primary color used throughout the app</div></div>
-      <div class="pickr-wrap" id="accent-pickr-wrap"></div>
-    </div>
-  </div>
-
-  <!-- QR Defaults -->
-  <div class="settings-section">
-    <div class="settings-section-title"><i class="fa-solid fa-qrcode"></i> QR Defaults</div>
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label">Default Size</div><div class="stg-sub">Applied to new QR codes</div></div>
-      <select class="select" style="width:100px;" onchange="setSetting('defaultSize',parseInt(this.value));
-        S.size=parseInt(this.value); document.getElementById('qr-size') && (document.getElementById('qr-size').value=this.value);">
-        ${[300,400,512,600,800,1000,1200].map(v => `<option value="${v}"${SETTINGS.defaultSize===v?' selected':''}>${v}px</option>`).join('')}
-      </select>
-    </div>
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label">Error Correction</div><div class="stg-sub">Higher = more damage resistant</div></div>
-      <select class="select" style="width:100px;" onchange="setSetting('defaultEC',this.value);
-        S.ec=this.value; document.getElementById('ec-level') && (document.getElementById('ec-level').value=this.value);">
-        ${['L','M','Q','H'].map(v => `<option value="${v}"${SETTINGS.defaultEC===v?' selected':''}>${v}</option>`).join('')}
-      </select>
-    </div>
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label">Default Format</div><div class="stg-sub">Download format when clicking main button</div></div>
-      <select class="select" style="width:100px;" onchange="setSetting('defaultFormat',this.value);">
-        ${['png','jpg','svg','webp'].map(v => `<option value="${v}"${SETTINGS.defaultFormat===v?' selected':''}>${v.toUpperCase()}</option>`).join('')}
-      </select>
-    </div>
-  </div>
-
-  <!-- Behavior -->
-  <div class="settings-section">
-    <div class="settings-section-title"><i class="fa-solid fa-sliders"></i> Behavior</div>
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label">Auto-save Projects</div><div class="stg-sub">Automatically save QR codes as you design</div></div>
-      <label class="toggle"><input type="checkbox" ${SETTINGS.autoSaveProjects?'checked':''}
-        onchange="setSetting('autoSaveProjects',this.checked)"><span class="toggle-slider"></span></label>
-    </div>
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label">Confirm Before Delete</div><div class="stg-sub">Ask for confirmation when deleting</div></div>
-      <label class="toggle"><input type="checkbox" ${SETTINGS.confirmDelete?'checked':''}
-        onchange="setSetting('confirmDelete',this.checked)"><span class="toggle-slider"></span></label>
-    </div>
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label">UI Animations</div><div class="stg-sub">Smooth transitions throughout the app</div></div>
-      <label class="toggle"><input type="checkbox" ${SETTINGS.animateUI?'checked':''}
-        onchange="setSetting('animateUI',this.checked)"><span class="toggle-slider"></span></label>
-    </div>
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label">High DPI Export</div><div class="stg-sub">Use device pixel ratio for sharper output</div></div>
-      <label class="toggle"><input type="checkbox" ${SETTINGS.highDPI?'checked':''}
-        onchange="setSetting('highDPI',this.checked)"><span class="toggle-slider"></span></label>
-    </div>
-  </div>
-
-  <!-- Data & Storage -->
-  <div class="settings-section">
-    <div class="settings-section-title"><i class="fa-solid fa-database"></i>
-      Data &amp; Storage
-      <span class="stg-count-chip">Projects: ${pAll} · Templates: ${tAll}</span>
-    </div>
-
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label">Export Projects <span class="stg-count-chip">${pAll}</span></div></div>
-      <button class="btn btn-outline btn-sm" onclick="exportProjects()">
-        <i class="fa-solid fa-file-export"></i> Export
-      </button>
-    </div>
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label">Export Templates <span class="stg-count-chip">${tAll}</span></div></div>
-      <button class="btn btn-outline btn-sm" onclick="exportTemplates()">
-        <i class="fa-solid fa-file-export"></i> Export
-      </button>
-    </div>
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label">Export All Data</div><div class="stg-sub">Projects, templates, and settings in one file</div></div>
-      <button class="btn btn-outline btn-sm" onclick="exportAllData()">
-        <i class="fa-solid fa-box-archive"></i> Export All
-      </button>
-    </div>
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label">Import Data</div><div class="stg-sub">Import projects or templates from JSON</div></div>
-      <button class="btn btn-ghost btn-sm" onclick="openModal('import-modal')">
-        <i class="fa-solid fa-file-import"></i> Import
-      </button>
-    </div>
-
-    <div class="divider"></div>
-
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label" style="color:var(--danger);">Clear Projects <span class="stg-count-chip">${pAll}</span></div></div>
-      <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:var(--danger);" onclick="clearDataConfirm('projects')">
-        <i class="fa-solid fa-trash"></i> Clear
-      </button>
-    </div>
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label" style="color:var(--danger);">Clear Templates <span class="stg-count-chip">${tAll}</span></div></div>
-      <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:var(--danger);" onclick="clearDataConfirm('templates')">
-        <i class="fa-solid fa-trash"></i> Clear
-      </button>
-    </div>
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label" style="color:var(--danger);">Clear All Data</div><div class="stg-sub">Projects, templates, reports, settings</div></div>
-      <button class="btn btn-danger btn-sm" onclick="clearDataConfirm('all')">
-        <i class="fa-solid fa-triangle-exclamation"></i> Clear All
-      </button>
-    </div>
-  </div>
-
-  <!-- About -->
-  <div class="settings-section">
-    <div class="settings-section-title"><i class="fa-solid fa-circle-info"></i> About QR Prism</div>
-    <div class="card" style="margin-bottom:0;">
-      <div class="card-body">
-        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
-          <div style="width:48px;height:48px;background:linear-gradient(135deg,var(--primary-dark),var(--accent));border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg viewBox="0 0 100 100" fill="none" width="28" height="28">
-              <rect x="8" y="8" width="35" height="35" rx="7" stroke="#fff" stroke-width="9"/>
-              <rect x="17" y="17" width="17" height="17" rx="3" fill="#fff"/>
-              <rect x="57" y="8" width="35" height="35" rx="7" stroke="#fff" stroke-width="9"/>
-              <rect x="66" y="17" width="17" height="17" rx="3" fill="#fff"/>
-              <rect x="8" y="57" width="35" height="35" rx="7" stroke="#fff" stroke-width="9"/>
-              <rect x="17" y="66" width="17" height="17" rx="3" fill="#fff"/>
-              <rect x="57" y="57" width="9" height="9" rx="2" fill="#fff"/>
-              <rect x="72" y="57" width="9" height="9" rx="2" fill="rgba(255,255,255,.7)"/>
-              <rect x="83" y="83" width="9" height="9" rx="2" fill="#fff"/>
-            </svg>
-          </div>
-          <div>
-            <div style="font-family:'Outfit',sans-serif;font-size:1.1rem;font-weight:800;">
-              <span style="color:var(--text1);">QR</span><span style="color:var(--primary);">Prism</span>
-            </div>
-            <div style="font-size:.74rem;color:var(--text3);">v2.7 · MIT License</div>
-          </div>
-          <div style="margin-left:auto;">
-            <a href="https://github.com/muhtasim-rahman/qr-prism" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">
-              <i class="fa-brands fa-github"></i> GitHub
-            </a>
-          </div>
+  // ── Account Section ──
+  container.appendChild(buildSection({
+    icon: 'fa-solid fa-user-circle',
+    title: 'Account',
+    rows: user ? `
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">${escHtml(cached?.displayName || user.displayName || 'Signed In')}</div>
+          <div class="settings-row-sub">${escHtml(user.email || '')}</div>
         </div>
-        <p style="font-size:.8rem;color:var(--text2);line-height:1.6;margin-bottom:12px;">
-          Advanced QR code generator with 16 types, 18+ patterns, gradients, logos, frames & templates.
-          100% client-side — your data never leaves your device.
-        </p>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
-          ${['HTML','CSS','JavaScript','qrcode.js','jsQR','JSZip','Pickr'].map(t =>
-            `<span class="stack-pill">${t}</span>`).join('')}
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost btn-sm" onclick="switchMode('profile')">
+            <i class="fa-solid fa-user"></i> Profile
+          </button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="signOut()">
+            <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+          </button>
         </div>
-        <div style="font-size:.78rem;color:var(--text3);">
-          Made with <i class="fa-solid fa-heart" style="color:#ef4444;"></i> by
-          <a href="https://mdturzo.odoo.com" target="_blank" rel="noopener" style="color:var(--primary);font-weight:600;">Muhtasim Rahman (Turzo)</a>
+      </div>`
+    : `
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Not signed in</div>
+          <div class="settings-row-sub">Sign in to sync your projects & templates</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-primary btn-sm" onclick="openModal('login-modal')">
+            <i class="fa-solid fa-right-to-bracket"></i> Sign In
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="switchAuthModal('signup')">
+            <i class="fa-solid fa-user-plus"></i> Register
+          </button>
+        </div>
+      </div>`,
+  }));
+
+  // ── Appearance ──
+  container.appendChild(buildSection({
+    icon: 'fa-solid fa-palette',
+    title: 'Appearance',
+    rows: `
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Theme</div>
+          <div class="settings-row-sub">Light, dark, or follow system</div>
+        </div>
+        <div style="display:flex;gap:4px;background:var(--surface2);padding:3px;border-radius:10px;">
+          ${['dark','light','system'].map(t => `
+            <button class="btn btn-sm${SETTINGS.theme === t ? ' btn-primary' : ' btn-ghost'}"
+                    style="padding:5px 11px;font-size:.74rem;border-radius:7px;"
+                    onclick="setSetting('theme','${t}');renderSettings();">
+              ${t === 'dark' ? '<i class="fa-solid fa-moon"></i>' : t === 'light' ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-circle-half-stroke"></i>'}
+              ${t.charAt(0).toUpperCase() + t.slice(1)}
+            </button>`).join('')}
         </div>
       </div>
-    </div>
-  </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Accent Color</div>
+          <div class="settings-row-sub">Primary color used throughout the app</div>
+        </div>
+        <div class="accent-dots">
+          ${ACCENT_OPTIONS.map(a => `
+            <div class="accent-dot${SETTINGS.accentColor === a.color ? ' active' : ''}"
+                 style="background:${a.color};"
+                 title="${a.label}"
+                 onclick="setSetting('accentColor','${a.color}');renderSettings();">
+            </div>`).join('')}
+        </div>
+      </div>`,
+  }));
 
-  <!-- Documentation -->
-  <div class="settings-section">
-    <div class="settings-section-title"><i class="fa-brands fa-github"></i> Documentation</div>
-    <div class="stg-row">
-      <div class="stg-info"><div class="stg-label">README.md</div><div class="stg-sub">Complete usage guide and API reference</div></div>
-      <button class="btn btn-outline btn-sm" onclick="openDocumentation()">
-        <i class="fa-solid fa-book-open"></i> Open Docs
-      </button>
-    </div>
-  </div>`;
+  // ── QR Defaults ──
+  container.appendChild(buildSection({
+    icon: 'fa-solid fa-qrcode',
+    title: 'QR Defaults',
+    rows: `
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Default Size</div>
+          <div class="settings-row-sub">Applied when starting a new QR</div>
+        </div>
+        <select class="select" style="width:110px;"
+                onchange="setSetting('defaultSize',parseInt(this.value))">
+          ${[300,400,512,600,800,1000,1200].map(v =>
+            `<option value="${v}"${SETTINGS.defaultSize === v ? ' selected' : ''}>${v}px</option>`
+          ).join('')}
+        </select>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Error Correction</div>
+          <div class="settings-row-sub">Higher = better scan reliability</div>
+        </div>
+        <div style="display:flex;gap:4px;">
+          ${['L','M','Q','H'].map(ec => `
+            <button class="ec-btn${SETTINGS.defaultEC === ec ? ' active' : ''}"
+                    style="padding:5px 10px;font-size:.78rem;"
+                    onclick="setSetting('defaultEC','${ec}');renderSettings();">${ec}</button>`
+          ).join('')}
+        </div>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Default Download Format</div>
+          <div class="settings-row-sub">Format used when clicking Download</div>
+        </div>
+        <select class="select" style="width:110px;"
+                onchange="setSetting('defaultFormat',this.value)">
+          ${['png','jpg','svg','webp','pdf'].map(f =>
+            `<option value="${f}"${SETTINGS.defaultFormat === f ? ' selected' : ''}>${f.toUpperCase()}</option>`
+          ).join('')}
+        </select>
+      </div>`,
+  }));
 
-  // Init accent Pickr
-  setTimeout(() => {
-    const accentWrap = document.getElementById('accent-pickr-wrap');
-    if (accentWrap && typeof Pickr !== 'undefined') {
-      try {
-        const inst = Pickr.create({
-          el: accentWrap, theme: 'nano',
-          default: SETTINGS.accentColor || '#818CF8',
-          components: { preview: true, opacity: false, hue: true,
-            interaction: { hex: true, input: true, save: true, cancel: true }},
-          i18n: { 'btn:save': 'Apply', 'btn:cancel': 'Cancel' }
-        });
-        inst.on('save', color => {
-          if (!color) return;
-          setSetting('accentColor', color.toHEXA().toString());
-          inst.hide();
-          renderSettings();
-        });
-      } catch(e) {
-        accentWrap.innerHTML = `<input type="color" value="${SETTINGS.accentColor||'#818CF8'}"
-          style="width:34px;height:34px;border:2px solid var(--border);border-radius:9px;cursor:pointer;"
-          oninput="setSetting('accentColor',this.value)">`;
-      }
-    }
-  }, 80);
+  // ── Behavior ──
+  container.appendChild(buildSection({
+    icon: 'fa-solid fa-sliders',
+    title: 'Behavior',
+    rows: [
+      ['Auto-save Projects', 'Automatically save QR codes as you design', 'autoSaveProjects'],
+      ['Confirm Before Delete', 'Show confirmation dialog when deleting', 'confirmDelete'],
+      ['UI Animations', 'Smooth transitions and micro-interactions', 'animateUI'],
+      ['High-DPI Export', 'Use device pixel ratio for sharper canvas output', 'highDPI'],
+      ['Show Analytics', 'Display QR version, module count, scanability score', 'showAnalytics'],
+    ].map(([label, sub, key]) => `
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">${label}</div>
+          <div class="settings-row-sub">${sub}</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" ${SETTINGS[key] ? 'checked' : ''}
+                 onchange="setSetting('${key}',this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>`).join(''),
+  }));
+
+  // ── Data & Storage ──
+  container.appendChild(buildSection({
+    icon: 'fa-solid fa-database',
+    title: 'Data & Storage',
+    rows: `
+      <div class="settings-row">
+        <div class="storage-stats">
+          <span class="stat-pill"><i class="fa-solid fa-folder"></i> Projects: ${projCount}</span>
+          <span class="stat-pill"><i class="fa-solid fa-bookmark"></i> Templates: ${tmplCount}</span>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div><div class="settings-row-label">Export Projects</div></div>
+        <button class="btn btn-outline btn-sm" onclick="exportProjects()">
+          <i class="fa-solid fa-file-export"></i> Export
+        </button>
+      </div>
+      <div class="settings-row">
+        <div><div class="settings-row-label">Export Templates</div></div>
+        <button class="btn btn-outline btn-sm" onclick="exportTemplates()">
+          <i class="fa-solid fa-file-export"></i> Export
+        </button>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Export All Data</div>
+          <div class="settings-row-sub">Projects, templates &amp; settings</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="exportAllData()">
+          <i class="fa-solid fa-box-archive"></i> Export All
+        </button>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Import Data</div>
+          <div class="settings-row-sub">Import from QR Prism JSON file</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="openModal('import-modal')">
+          <i class="fa-solid fa-file-import"></i> Import
+        </button>
+      </div>
+      ${user ? `
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Sync with Cloud</div>
+          <div class="settings-row-sub">Push local data to your Firebase account</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="manualSyncToCloud()">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Sync Now
+        </button>
+      </div>` : ''}
+      <div class="divider"></div>
+      <div class="settings-row">
+        <div><div class="settings-row-label" style="color:var(--danger);">Clear Projects</div></div>
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(248,113,113,.35);"
+                onclick="clearDataConfirm('projects')">
+          <i class="fa-solid fa-trash"></i> Clear
+        </button>
+      </div>
+      <div class="settings-row">
+        <div><div class="settings-row-label" style="color:var(--danger);">Clear Templates</div></div>
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:rgba(248,113,113,.35);"
+                onclick="clearDataConfirm('templates')">
+          <i class="fa-solid fa-trash"></i> Clear
+        </button>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label" style="color:var(--danger);">Clear All Data</div>
+          <div class="settings-row-sub">Cannot be undone</div>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="clearDataConfirm('all')">
+          <i class="fa-solid fa-triangle-exclamation"></i> Clear All
+        </button>
+      </div>`,
+  }));
+
+  // ── About ──
+  container.appendChild(buildAboutSection());
 }
 
-// ── Clear data with confirmation ──────────────────────────────
+// ══════════════════════════════════════════════════════════
+// SECTION BUILDER HELPERS
+// ══════════════════════════════════════════════════════════
+function buildSection({ icon, title, rows }) {
+  const el = document.createElement('div');
+  el.className = 'settings-section';
+  el.innerHTML = `
+    <div class="settings-section-header">
+      <i class="${icon}"></i>
+      <div class="settings-section-title">${escHtml(title)}</div>
+    </div>
+    <div class="settings-body">${rows}</div>`;
+  return el;
+}
+
+function buildAboutSection() {
+  const el = document.createElement('div');
+  el.className = 'settings-section';
+  el.innerHTML = `
+    <div class="settings-section-header">
+      <i class="fa-solid fa-circle-info"></i>
+      <div class="settings-section-title">About QR Prism</div>
+    </div>
+    <div class="settings-body">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+        <div style="flex-shrink:0;">
+          <img class="brand-logo-icon brand-logo-dark-bg"  src="./assets/logo-light.svg" alt="QR Prism" style="width:52px;height:52px;">
+          <img class="brand-logo-icon brand-logo-light-bg" src="./assets/logo-dark.svg"  alt="QR Prism" style="width:52px;height:52px;">
+        </div>
+        <div style="flex:1;">
+          <div style="margin-bottom:4px;">
+            <img class="brand-logo brand-logo-dark-bg"  src="./assets/logo&name-light.svg" alt="QR Prism" style="height:22px;">
+            <img class="brand-logo brand-logo-light-bg" src="./assets/logo&name-dark.svg"  alt="QR Prism" style="height:22px;">
+          </div>
+          <div style="font-size:.72rem;color:var(--text3);font-family:'Fira Code',monospace;">
+            v2.8 &nbsp;·&nbsp; MIT License
+          </div>
+        </div>
+        <a href="https://github.com/muhtasim-rahman/qr-prism" target="_blank" rel="noopener"
+           class="btn btn-ghost btn-sm">
+          <i class="fa-brands fa-github"></i> GitHub
+        </a>
+      </div>
+      <p style="font-size:.80rem;color:var(--text2);line-height:1.6;margin-bottom:12px;">
+        Professional free QR code generator — 16 types, 22 dot patterns, gradients,
+        logos, frames, Firebase sync. 100% client-side.
+      </p>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px;">
+        ${['HTML5','CSS3','Vanilla JS','Firebase','qrcode.js','jsQR','JSZip','Pickr','ImgBB']
+          .map(t => `<span class="stack-pill">${t}</span>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="openModal('about-modal')">
+          <i class="fa-solid fa-circle-info"></i> About
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="openDocumentation()">
+          <i class="fa-solid fa-book-open"></i> Documentation
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="openModal('kb-modal')">
+          <i class="fa-solid fa-keyboard"></i> Shortcuts
+        </button>
+      </div>
+      <p style="font-size:.76rem;color:var(--text3);margin-top:14px;">
+        Made with <i class="fa-solid fa-heart" style="color:#ef4444;"></i> by
+        <a href="https://mdturzo.odoo.com" target="_blank" rel="noopener"
+           style="color:var(--primary);font-weight:600;">Muhtasim Rahman (Turzo)</a>
+      </p>
+    </div>`;
+  return el;
+}
+
+// ══════════════════════════════════════════════════════════
+// PWA INSTALL BANNER
+// ══════════════════════════════════════════════════════════
+function buildPWABanner() {
+  const el = document.createElement('div');
+  const installed = typeof isPWAInstalled === 'function' && isPWAInstalled();
+
+  if (installed) {
+    el.className = 'install-banner install-banner-installed';
+    el.innerHTML = `
+      <div class="install-banner-icon"><i class="fa-solid fa-circle-check" style="color:var(--success);"></i></div>
+      <div class="install-banner-info">
+        <div class="install-banner-title" style="color:var(--success);">QR Prism is installed</div>
+        <div class="install-banner-sub">Running as a native app on this device</div>
+      </div>`;
+  } else {
+    el.className = 'install-banner';
+    el.innerHTML = `
+      <div class="install-banner-icon"><i class="fa-solid fa-mobile-screen"></i></div>
+      <div class="install-banner-info">
+        <div class="install-banner-title">Install QR Prism</div>
+        <div class="install-banner-sub">Add to home screen for offline use &amp; faster launch</div>
+      </div>
+      <button class="btn btn-sm" id="pwa-install-btn" onclick="installPWA()">
+        <i class="fa-solid fa-download"></i> Install
+      </button>`;
+
+    // Hide install button if prompt not available
+    if (typeof deferredInstallPrompt === 'undefined' || !deferredInstallPrompt) {
+      el.style.display = 'none';
+    }
+  }
+
+  return el;
+}
+
+// Show/hide PWA banner when prompt becomes available
+document.addEventListener('pwa-installable', () => renderSettings());
+document.addEventListener('pwa-installed',   () => renderSettings());
+
+// ══════════════════════════════════════════════════════════
+// syncProfileUI  (called from firebase.js / app.js)
+// ══════════════════════════════════════════════════════════
+function syncProfileUI() {
+  // Update sidebar + topnav + mobile avatar via firebase.js updateAuthUI
+  const cached = (typeof getCachedUserProfile === 'function') ? getCachedUserProfile() : null;
+  if (typeof updateAuthUI === 'function') updateAuthUI(cached);
+}
+
+// ══════════════════════════════════════════════════════════
+// MANUAL CLOUD SYNC BUTTON
+// ══════════════════════════════════════════════════════════
+async function manualSyncToCloud() {
+  if (typeof FB_USER === 'undefined' || !FB_USER) {
+    showToast('Sign in to sync', 'info'); return;
+  }
+  try {
+    await syncToCloud(FB_USER.uid);
+    showToast('Synced to cloud!', 'success');
+  } catch {
+    showToast('Sync failed', 'error');
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// CLEAR DATA
+// ══════════════════════════════════════════════════════════
 function clearDataConfirm(type) {
-  const labels = {
-    projects:  { title: 'Clear Projects',  key: 'qrp_projects',  label: 'All saved and auto-saved projects' },
-    templates: { title: 'Clear Templates', key: 'qrp_templates', label: 'All saved templates' },
-    all:       { title: 'Clear All Data',  key: null,            label: 'All projects, templates, reports, and settings' },
+  const cfg = {
+    projects:  { title:'Clear Projects',  keys:['qrp_projects'],  msg:'All saved and auto-saved projects' },
+    templates: { title:'Clear Templates', keys:['qrp_templates'], msg:'All saved templates' },
+    all:       { title:'Clear All Data',  keys:['qrp_projects','qrp_templates','qrp_settings'], msg:'All projects, templates and settings' },
   };
-  const info = labels[type];
-  if (!info) return;
+  const c = cfg[type];
+  if (!c) return;
 
   showConfirm({
-    title:   info.title,
-    msg:     `This will permanently delete: ${info.label}. This cannot be undone.`,
+    title:   c.title,
+    msg:     `This will permanently delete: ${c.msg}. This cannot be undone.`,
     okLabel: 'Delete Forever',
     okClass: 'btn-danger',
     onConfirm: () => {
+      c.keys.forEach(k => localStorage.removeItem(k));
       if (type === 'all') {
-        ['qrp_projects','qrp_templates','qrp_reports','qrp_settings','qrp_profile'].forEach(k =>
-          localStorage.removeItem(k)
-        );
-        // Reset SETTINGS to defaults
         Object.assign(SETTINGS, {
-          theme: 'dark', accentColor: '#818CF8', autoSaveProjects: true,
-          confirmDelete: true, defaultFormat: 'png', defaultSize: 600,
-          defaultEC: 'H', showAnalytics: true, highDPI: true, animateUI: true,
+          theme:'dark', accentColor:'#818CF8', autoSaveProjects:true,
+          confirmDelete:true, defaultFormat:'png', defaultSize:600,
+          defaultEC:'H', showAnalytics:true, highDPI:false, animateUI:true,
         });
         applyTheme('dark');
-      } else {
-        localStorage.removeItem(info.key);
+        applyAccent('#818CF8');
       }
       updateProjectCounts();
       renderSettings();
-      showToast(info.title + ' complete', 'info');
+      showToast(`${c.title} complete`, 'info');
     }
   });
-}
-
-// ── Export all data ───────────────────────────────────────────
-function exportAllData() {
-  const projects  = JSON.parse(localStorage.getItem('qrp_projects')  || '[]');
-  const templates = JSON.parse(localStorage.getItem('qrp_templates') || '[]');
-  const profile   = JSON.parse(localStorage.getItem('qrp_profile')   || '{}');
-  const data = {
-    _type:     'qrp_all',
-    _ver:      '2.7',
-    _date:     new Date().toISOString(),
-    _copy:     '© QR Prism by Muhtasim Rahman (Turzo) — https://mdturzo.odoo.com',
-    settings:  SETTINGS,
-    profile,
-    projects,
-    templates,
-  };
-  exportJSON(data, buildExportFilename('all-data', projects.length + templates.length));
-  showToast('All data exported', 'success');
 }

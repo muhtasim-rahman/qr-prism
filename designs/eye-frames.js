@@ -1,269 +1,236 @@
 // =========================================================
-// EYE-FRAMES.JS — QR Prism v2.7
-// 12 Eye Frame Designs
-// CRITICAL: NEVER fill inner area with color (bgColor step
-//           in qr-engine.js handles that separately)
-// Each: { id, name, draw(ctx, x, y, size7, color) }
+// EYE-FRAMES.JS — QR Prism v2.8
+// 14 Eye Frame (Outer Finder Pattern) Designs
+// draw(ctx, x, y, s, color)
+//   s = full 7×7 eye size
+// IMPORTANT: Only draw the OUTER ring shape.
+//   qr-engine.js will clearRect the inner 5×5 after this.
+//   Use a SINGLE color only — no layering.
+// Author: Muhtasim Rahman (Turzo) · https://mdturzo.odoo.com
 // =========================================================
 
+/* ── Shared helpers ─────────────────────────────────────── */
+function _efRR(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);       ctx.arcTo(x + w, y,     x + w, y + r,     r);
+  ctx.lineTo(x + w, y + h - r);   ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);       ctx.arcTo(x,     y + h, x,     y + h - r, r);
+  ctx.lineTo(x, y + r);           ctx.arcTo(x,     y,     x + r, y,         r);
+  ctx.closePath();
+}
+
 const EYE_FRAMES = [
+
+  /* ── 1. Square ──────────────────────────────────────────── */
   {
-    id: 'ef-square',
-    name: 'Square',
-    draw(ctx, x, y, s, color) {
-      const t = s / 7; // border thickness ≈ 1 module
-      ctx.fillStyle = color;
-      // Top
-      ctx.fillRect(x, y, s, t);
-      // Bottom
-      ctx.fillRect(x, y + s - t, s, t);
-      // Left
-      ctx.fillRect(x, y + t, t, s - t * 2);
-      // Right
-      ctx.fillRect(x + s - t, y + t, t, s - t * 2);
-    }
-  },
-  {
-    id: 'ef-round',
-    name: 'Rounded',
+    id: 'ef-square', name: 'Square',
     draw(ctx, x, y, s, color) {
       const t = s / 7;
-      const r = s * 0.22;
       ctx.fillStyle = color;
-      // Outer rounded rect
-      ctx.beginPath();
-      ctx.roundRect(x, y, s, s, r);
-      // Inner cutout
-      ctx.roundRect(x + t, y + t, s - t * 2, s - t * 2, r * 0.55);
-      ctx.fill('evenodd');
+      ctx.fillRect(x, y, s, s);
+      // Engine clears inner; we fill all for correct rendering
     }
   },
+
+  /* ── 2. Rounded Small ───────────────────────────────────── */
   {
-    id: 'ef-circle',
-    name: 'Circle',
+    id: 'ef-round-sm', name: 'Rounded',
     draw(ctx, x, y, s, color) {
-      const t = s / 7;
-      const cx = x + s / 2, cy = y + s / 2;
-      const ro = s / 2 - 1;
-      const ri = s / 2 - t - 1;
+      ctx.fillStyle = color;
+      _efRR(ctx, x, y, s, s, s * 0.18);
+      ctx.fill();
+    }
+  },
+
+  /* ── 3. Rounded Large ───────────────────────────────────── */
+  {
+    id: 'ef-round-lg', name: 'Rounded+',
+    draw(ctx, x, y, s, color) {
+      ctx.fillStyle = color;
+      _efRR(ctx, x, y, s, s, s * 0.38);
+      ctx.fill();
+    }
+  },
+
+  /* ── 4. Circle ──────────────────────────────────────────── */
+  {
+    id: 'ef-circle', name: 'Circle',
+    draw(ctx, x, y, s, color) {
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(cx, cy, ro, 0, Math.PI * 2);
-      ctx.arc(cx, cy, ri, 0, Math.PI * 2, true);
-      ctx.fill('evenodd');
+      ctx.arc(x + s / 2, y + s / 2, s * 0.50, 0, Math.PI * 2);
+      ctx.fill();
     }
   },
+
+  /* ── 5. Squircle ────────────────────────────────────────── */
   {
-    id: 'ef-thick',
-    name: 'Thick',
+    id: 'ef-squircle', name: 'Squircle',
     draw(ctx, x, y, s, color) {
-      const t = s / 5; // thicker border
       ctx.fillStyle = color;
-      ctx.fillRect(x, y, s, t);
-      ctx.fillRect(x, y + s - t, s, t);
-      ctx.fillRect(x, y + t, t, s - t * 2);
-      ctx.fillRect(x + s - t, y + t, t, s - t * 2);
+      _efRR(ctx, x, y, s, s, s * 0.28);
+      ctx.fill();
     }
   },
+
+  /* ── 6. Hexagon ─────────────────────────────────────────── */
   {
-    id: 'ef-double',
-    name: 'Double',
+    id: 'ef-hexagon', name: 'Hexagon',
     draw(ctx, x, y, s, color) {
-      const t1 = s / 14; // thin outer
-      const t2 = s / 14; // thin inner
-      const gap = s / 14;
-      ctx.fillStyle = color;
-      // Outer ring
-      const drawRing = (ox, oy, os, th) => {
-        ctx.fillRect(ox, oy, os, th);
-        ctx.fillRect(ox, oy + os - th, os, th);
-        ctx.fillRect(ox, oy + th, th, os - th * 2);
-        ctx.fillRect(ox + os - th, oy + th, th, os - th * 2);
-      };
-      drawRing(x, y, s, t1);
-      drawRing(x + t1 + gap, y + t1 + gap, s - (t1 + gap) * 2, t2);
-    }
-  },
-  {
-    id: 'ef-cut-corner',
-    name: 'Cut Corner',
-    draw(ctx, x, y, s, color) {
-      const t = s / 7;
-      const cut = s * 0.22;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      // Outer polygon with cut corners
-      ctx.moveTo(x + cut, y);
-      ctx.lineTo(x + s - cut, y);
-      ctx.lineTo(x + s, y + cut);
-      ctx.lineTo(x + s, y + s - cut);
-      ctx.lineTo(x + s - cut, y + s);
-      ctx.lineTo(x + cut, y + s);
-      ctx.lineTo(x, y + s - cut);
-      ctx.lineTo(x, y + cut);
-      ctx.closePath();
-      // Inner cutout
-      const ix = x + t, iy = y + t, is = s - t * 2, icut = cut * 0.7;
-      ctx.moveTo(ix + icut, iy);
-      ctx.lineTo(ix + is - icut, iy);
-      ctx.lineTo(ix + is, iy + icut);
-      ctx.lineTo(ix + is, iy + is - icut);
-      ctx.lineTo(ix + is - icut, iy + is);
-      ctx.lineTo(ix + icut, iy + is);
-      ctx.lineTo(ix, iy + is - icut);
-      ctx.lineTo(ix, iy + icut);
-      ctx.closePath();
-      ctx.fill('evenodd');
-    }
-  },
-  {
-    id: 'ef-leaf',
-    name: 'Leaf',
-    draw(ctx, x, y, s, color) {
-      const t = s / 7;
-      const r = s * 0.4;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(x + s / 2, y);
-      ctx.quadraticCurveTo(x + s, y, x + s, y + s / 2);
-      ctx.quadraticCurveTo(x + s, y + s, x + s / 2, y + s);
-      ctx.quadraticCurveTo(x, y + s, x, y + s / 2);
-      ctx.quadraticCurveTo(x, y, x + s / 2, y);
-      // Inner cutout
-      ctx.moveTo(x + s / 2, y + t);
-      ctx.quadraticCurveTo(x + s - t, y + t, x + s - t, y + s / 2);
-      ctx.quadraticCurveTo(x + s - t, y + s - t, x + s / 2, y + s - t);
-      ctx.quadraticCurveTo(x + t, y + s - t, x + t, y + s / 2);
-      ctx.quadraticCurveTo(x + t, y + t, x + s / 2, y + t);
-      ctx.fill('evenodd');
-    }
-  },
-  {
-    id: 'ef-bracket',
-    name: 'Bracket',
-    draw(ctx, x, y, s, color) {
-      const t = s / 7;
-      const arm = s * 0.38; // arm length
-      ctx.fillStyle = color;
-      // 4 L-shaped corners
-      const corners = [
-        [x, y], [x + s - arm, y], [x, y + s - arm], [x + s - arm, y + s - arm]
-      ];
-      const dirs = [
-        [1, 1], [-1, 1], [1, -1], [-1, -1]
-      ];
-      corners.forEach(([cx, cy], i) => {
-        const [dx, dy] = dirs[i];
-        ctx.fillRect(cx, cy, arm * dx || t, t * dy || arm);
-        // Fix signs
-      });
-      // Simpler approach: 4 L shapes
-      ctx.clearRect(0, 0, 0, 0); // reset
-      ctx.fillStyle = color;
-      // Top-left
-      ctx.fillRect(x, y, arm, t);
-      ctx.fillRect(x, y, t, arm);
-      // Top-right
-      ctx.fillRect(x + s - arm, y, arm, t);
-      ctx.fillRect(x + s - t, y, t, arm);
-      // Bottom-left
-      ctx.fillRect(x, y + s - t, arm, t);
-      ctx.fillRect(x, y + s - arm, t, arm);
-      // Bottom-right
-      ctx.fillRect(x + s - arm, y + s - t, arm, t);
-      ctx.fillRect(x + s - t, y + s - arm, t, arm);
-    }
-  },
-  {
-    id: 'ef-sharp-in',
-    name: 'Sharp In',
-    draw(ctx, x, y, s, color) {
-      const t = s / 7;
-      const cut = s * 0.18;
-      ctx.fillStyle = color;
-      // Star-like outer with inward points at corners
-      ctx.beginPath();
-      ctx.moveTo(x + s / 2, y);
-      ctx.lineTo(x + s - cut, y + cut);
-      ctx.lineTo(x + s, y + s / 2);
-      ctx.lineTo(x + s - cut, y + s - cut);
-      ctx.lineTo(x + s / 2, y + s);
-      ctx.lineTo(x + cut, y + s - cut);
-      ctx.lineTo(x, y + s / 2);
-      ctx.lineTo(x + cut, y + cut);
-      ctx.closePath();
-      // Inner
-      const ix = x + t, iy = y + t, is = s - t * 2, icut = cut * 0.6;
-      ctx.moveTo(ix + is / 2, iy);
-      ctx.lineTo(ix + is - icut, iy + icut);
-      ctx.lineTo(ix + is, iy + is / 2);
-      ctx.lineTo(ix + is - icut, iy + is - icut);
-      ctx.lineTo(ix + is / 2, iy + is);
-      ctx.lineTo(ix + icut, iy + is - icut);
-      ctx.lineTo(ix, iy + is / 2);
-      ctx.lineTo(ix + icut, iy + icut);
-      ctx.closePath();
-      ctx.fill('evenodd');
-    }
-  },
-  {
-    id: 'ef-hexborder',
-    name: 'Hexagon',
-    draw(ctx, x, y, s, color) {
-      const t = s / 7;
-      const cx = x + s / 2, cy = y + s / 2;
-      const ro = s / 2 - 1, ri = ro - t;
+      const cx = x + s / 2, cy = y + s / 2, r = s * 0.50;
       ctx.fillStyle = color;
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
-        const a = (i * Math.PI) / 3 - Math.PI / 6;
-        if (i === 0) ctx.moveTo(cx + ro * Math.cos(a), cy + ro * Math.sin(a));
-        else ctx.lineTo(cx + ro * Math.cos(a), cy + ro * Math.sin(a));
+        const a = (i * Math.PI) / 3 + Math.PI / 6;
+        if (i === 0) ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+        else         ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
       }
       ctx.closePath();
-      ctx.moveTo(cx + ri, cy);
-      for (let i = 0; i < 6; i++) {
-        const a = (i * Math.PI) / 3 - Math.PI / 6;
-        if (i === 0) ctx.moveTo(cx + ri * Math.cos(a), cy + ri * Math.sin(a));
-        else ctx.lineTo(cx + ri * Math.cos(a), cy + ri * Math.sin(a));
-      }
-      ctx.closePath();
-      ctx.fill('evenodd');
+      ctx.fill();
     }
   },
+
+  /* ── 7. Diamond (rotated square) ───────────────────────── */
   {
-    id: 'ef-diamond-frame',
-    name: 'Diamond',
+    id: 'ef-diamond', name: 'Diamond',
     draw(ctx, x, y, s, color) {
-      const t = s / 7;
-      const cx = x + s / 2, cy = y + s / 2;
-      const ro = s / 2 - 1, ri = ro - t;
+      const cx = x + s / 2, cy = y + s / 2, h = s * 0.50;
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.moveTo(cx, cy - ro);
-      ctx.lineTo(cx + ro, cy);
-      ctx.lineTo(cx, cy + ro);
-      ctx.lineTo(cx - ro, cy);
+      ctx.moveTo(cx,     cy - h);
+      ctx.lineTo(cx + h, cy);
+      ctx.lineTo(cx,     cy + h);
+      ctx.lineTo(cx - h, cy);
       ctx.closePath();
-      ctx.moveTo(cx, cy - ri);
-      ctx.lineTo(cx + ri, cy);
-      ctx.lineTo(cx, cy + ri);
-      ctx.lineTo(cx - ri, cy);
-      ctx.closePath();
-      ctx.fill('evenodd');
+      ctx.fill();
     }
   },
+
+  /* ── 8. Leaf (top-right rounded, bottom-left sharp) ─────── */
   {
-    id: 'ef-round-thick',
-    name: 'Round Thick',
+    id: 'ef-leaf-tr', name: 'Leaf TR',
     draw(ctx, x, y, s, color) {
-      const t = s / 5;
-      const r = s * 0.28;
+      const r = s * 0.45;
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.roundRect(x, y, s, s, r);
-      ctx.roundRect(x + t, y + t, s - t * 2, s - t * 2, r * 0.45);
-      ctx.fill('evenodd');
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + s - r, y);
+      ctx.arcTo(x + s, y,     x + s, y + r,     r);
+      ctx.lineTo(x + s, y + s - r);
+      ctx.arcTo(x + s, y + s, x + s - r, y + s, r * 0.5);
+      ctx.lineTo(x, y + s);
+      ctx.closePath();
+      ctx.fill();
     }
   },
+
+  /* ── 9. Leaf (top-left rounded) ─────────────────────────── */
+  {
+    id: 'ef-leaf-tl', name: 'Leaf TL',
+    draw(ctx, x, y, s, color) {
+      const r = s * 0.45;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + s, y);
+      ctx.lineTo(x + s, y + s);
+      ctx.lineTo(x, y + s);
+      ctx.lineTo(x, y + r);
+      ctx.arcTo(x, y, x + r, y, r);
+      ctx.closePath();
+      ctx.fill();
+    }
+  },
+
+  /* ── 10. Notched (cut 2 corners) ────────────────────────── */
+  {
+    id: 'ef-notch', name: 'Notched',
+    draw(ctx, x, y, s, color) {
+      const c = s * 0.20;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(x + c,     y);
+      ctx.lineTo(x + s,     y);
+      ctx.lineTo(x + s,     y + s - c);
+      ctx.lineTo(x + s - c, y + s);
+      ctx.lineTo(x,         y + s);
+      ctx.lineTo(x,         y + c);
+      ctx.closePath();
+      ctx.fill();
+    }
+  },
+
+  /* ── 11. Rounded Top-Left only ───────────────────────────── */
+  {
+    id: 'ef-round-one', name: 'Corner R',
+    draw(ctx, x, y, s, color) {
+      const r = s * 0.44;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + s, y);
+      ctx.lineTo(x + s, y + s);
+      ctx.lineTo(x, y + s);
+      ctx.lineTo(x, y + r);
+      ctx.arcTo(x, y, x + r, y, r);
+      ctx.lineTo(x + r, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+  },
+
+  /* ── 12. Chamfered (all 4 corners clipped) ───────────────── */
+  {
+    id: 'ef-chamfer', name: 'Chamfered',
+    draw(ctx, x, y, s, color) {
+      const c = s * 0.16;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(x + c,     y);
+      ctx.lineTo(x + s - c, y);
+      ctx.lineTo(x + s,     y + c);
+      ctx.lineTo(x + s,     y + s - c);
+      ctx.lineTo(x + s - c, y + s);
+      ctx.lineTo(x + c,     y + s);
+      ctx.lineTo(x,         y + s - c);
+      ctx.lineTo(x,         y + c);
+      ctx.closePath();
+      ctx.fill();
+    }
+  },
+
+  /* ── 13. Pill (extra wide radius) ────────────────────────── */
+  {
+    id: 'ef-pill', name: 'Pill',
+    draw(ctx, x, y, s, color) {
+      ctx.fillStyle = color;
+      _efRR(ctx, x, y, s, s, s * 0.50);
+      ctx.fill();
+    }
+  },
+
+  /* ── 14. Tilted Rounded ──────────────────────────────────── */
+  {
+    id: 'ef-mixed', name: 'Mixed',
+    draw(ctx, x, y, s, color) {
+      // Top-right & bottom-left = large radius; others = small
+      const rSmall = s * 0.10, rLarge = s * 0.40;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(x + rSmall, y);
+      ctx.lineTo(x + s - rLarge, y);
+      ctx.arcTo(x + s, y,     x + s, y + rLarge,     rLarge);
+      ctx.lineTo(x + s, y + s - rSmall);
+      ctx.arcTo(x + s, y + s, x + s - rSmall, y + s, rSmall);
+      ctx.lineTo(x + rLarge, y + s);
+      ctx.arcTo(x, y + s, x, y + s - rLarge, rLarge);
+      ctx.lineTo(x, y + rSmall);
+      ctx.arcTo(x, y, x + rSmall, y, rSmall);
+      ctx.closePath();
+      ctx.fill();
+    }
+  },
+
 ];

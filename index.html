@@ -35,21 +35,31 @@
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="icon" href="./icons/icon-192.png">
 
-  <!-- CDN Libraries -->
+  <!-- ── Firebase SDK (compat v9) — Storage NOT needed, using ImgBB ── -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <!-- ── Cropper.js (1:1 profile photo crop) ── -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+
+  <!-- ── CDN Libraries ── -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
-  <!-- Pickr Color Picker -->
+  <!-- Pickr Color Picker (nano theme) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/nano.min.css"/>
   <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script>
 
-  <!-- Marked (Markdown parser for docs) -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Fira+Code:wght@400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
   <!-- Designs (must load before app) -->
   <script src="designs/patterns.js"></script>
@@ -60,173 +70,193 @@
 
   <!-- App CSS -->
   <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Print styles: only QR visible -->
+  <style media="print">
+    body * { visibility: hidden !important; }
+    #qr-print-area, #qr-print-area * { visibility: visible !important; }
+    #qr-print-area {
+      position: fixed !important;
+      top: 50% !important; left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      gap: 12px;
+    }
+  </style>
 </head>
 <body>
 
-<div class="app-shell">
+<!-- Hidden print area -->
+<div id="qr-print-area" style="display:none;">
+  <canvas id="qr-print-canvas"></canvas>
+</div>
+
+<div class="app-shell" id="app-shell">
 
   <!-- ══════════════════════════════════════════
-       SIDEBAR (PC ≥ 1024px)
+       SIDEBAR  (PC ≥ 1024px)
   ═══════════════════════════════════════════ -->
-  <aside class="sidebar" id="sidebar">
+  <aside class="sidebar" id="sidebar" data-collapsed="false">
 
+    <!-- Collapse toggle button -->
+    <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" onclick="toggleSidebar()" title="Collapse sidebar">
+      <i class="fa-solid fa-chevron-left" id="sidebar-collapse-icon"></i>
+    </button>
+
+    <!-- Logo -->
     <a class="sidebar-logo" href="#" onclick="switchMode('gen'); return false;">
-      <div class="sidebar-logo-icon">
-        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="8" y="8" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
-          <rect x="17" y="17" width="17" height="17" rx="3" fill="currentColor"/>
-          <rect x="57" y="8" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
-          <rect x="66" y="17" width="17" height="17" rx="3" fill="currentColor"/>
-          <rect x="8" y="57" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
-          <rect x="17" y="66" width="17" height="17" rx="3" fill="currentColor"/>
-          <rect x="57" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
-          <rect x="72" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
-          <rect x="57" y="72" width="9" height="9" rx="2" fill="#818CF8"/>
-          <rect x="72" y="72" width="9" height="9" rx="2" fill="#C084FC"/>
-          <rect x="83" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
-          <rect x="83" y="83" width="9" height="9" rx="2" fill="#818CF8"/>
-          <rect x="57" y="83" width="9" height="9" rx="2" fill="#818CF8"/>
-        </svg>
-      </div>
-      <div class="sidebar-logo-text">
-        <span class="logo-qr">QR</span><span class="logo-prism">Prism</span>
-      </div>
-      <span class="sidebar-version">v2.7</span>
+      <img class="brand-logo brand-logo-dark-bg" src="./assets/logo&name-light.svg" alt="QR Prism" />
+      <img class="brand-logo brand-logo-light-bg" src="./assets/logo&name-dark.svg" alt="QR Prism" />
+      <img class="brand-logo-icon brand-logo-dark-bg" src="./assets/logo-light.svg" alt="QR Prism" style="display:none;" />
+      <img class="brand-logo-icon brand-logo-light-bg" src="./assets/logo-dark.svg" alt="QR Prism" style="display:none;" />
+      <span class="sidebar-version">v2.8</span>
     </a>
 
-    <!-- Profile -->
-    <div class="sidebar-profile" id="sidebar-profile" onclick="switchMode('profile')">
-      <div class="sidebar-profile-avatar" id="sp-avatar">?</div>
+    <!-- Profile section (top — only one, no duplicate below) -->
+    <div class="sidebar-profile" id="sidebar-profile" onclick="handleProfileClick()">
+      <div class="sidebar-profile-avatar" id="sp-avatar">
+        <i class="fa-solid fa-user"></i>
+      </div>
       <div class="sidebar-profile-info">
         <div class="sidebar-profile-name" id="sp-name">Guest User</div>
-        <div class="sidebar-profile-sub" id="sp-sub">Click to set up profile</div>
+        <div class="sidebar-profile-sub" id="sp-sub">Sign in to save your work</div>
       </div>
       <i class="fa-solid fa-chevron-right sidebar-profile-arrow"></i>
     </div>
 
+    <!-- Sign In button (shown when not logged in) -->
+    <div class="sidebar-auth-area" id="sidebar-auth-area">
+      <button class="btn btn-primary btn-sm sidebar-signin-btn" onclick="openModal('login-modal')">
+        <i class="fa-solid fa-right-to-bracket"></i>
+        <span class="sidebar-text">Sign In</span>
+      </button>
+    </div>
+
     <!-- Nav -->
     <nav class="sidebar-nav">
-      <div class="nav-group-label">Create</div>
+      <div class="nav-group-label sidebar-text">Create</div>
       <button class="nav-item active" data-mode="gen" onclick="switchMode('gen')">
         <i class="fa-solid fa-wand-magic-sparkles nav-icon"></i>
-        <span>Generator</span>
+        <span class="sidebar-text">Generator</span>
       </button>
       <button class="nav-item" data-mode="batch" onclick="switchMode('batch')">
         <i class="fa-solid fa-layer-group nav-icon"></i>
-        <span>Batch Generator</span>
+        <span class="sidebar-text">Batch Generator</span>
       </button>
 
-      <div class="nav-group-label">Tools</div>
+      <div class="nav-group-label sidebar-text">Tools</div>
       <button class="nav-item" data-mode="scan" onclick="switchMode('scan')">
         <i class="fa-solid fa-camera-viewfinder nav-icon"></i>
-        <span>Scanner</span>
+        <span class="sidebar-text">Scanner</span>
       </button>
       <button class="nav-item" data-mode="projects" onclick="switchMode('projects')">
         <i class="fa-solid fa-folder-open nav-icon"></i>
-        <span>Projects</span>
-        <span class="nav-badge" id="sidebar-project-count">0</span>
+        <span class="sidebar-text">Projects</span>
+        <span class="nav-badge sidebar-text" id="sidebar-project-count" style="display:none;">0</span>
       </button>
 
-      <div class="nav-group-label">Account</div>
-      <button class="nav-item" data-mode="profile" onclick="switchMode('profile')">
-        <i class="fa-solid fa-circle-user nav-icon"></i>
-        <span>Profile</span>
-      </button>
+      <div class="nav-group-label sidebar-text">Account</div>
       <button class="nav-item" data-mode="templates-manage" onclick="switchMode('templates-manage')">
         <i class="fa-solid fa-bookmark nav-icon"></i>
-        <span>My Templates</span>
+        <span class="sidebar-text">My Templates</span>
       </button>
 
-      <div class="nav-group-label">More</div>
+      <div class="nav-group-label sidebar-text">More</div>
       <button class="nav-item" data-mode="settings" onclick="switchMode('settings')">
         <i class="fa-solid fa-gear nav-icon"></i>
-        <span>Settings</span>
+        <span class="sidebar-text">Settings</span>
       </button>
       <button class="nav-item" data-mode="report" onclick="switchMode('report')">
         <i class="fa-solid fa-bug nav-icon"></i>
-        <span>Report Bug</span>
+        <span class="sidebar-text">Report Bug</span>
       </button>
       <button class="nav-item" onclick="openDocumentation()">
         <i class="fa-brands fa-github nav-icon"></i>
-        <span>Documentation</span>
+        <span class="sidebar-text">Documentation</span>
       </button>
     </nav>
 
     <div class="sidebar-footer">
-      <button class="icon-btn tooltip-wrap" id="sidebar-dark-btn" onclick="toggleDark()" title="Toggle Theme">
+      <button class="icon-btn tooltip-wrap" id="sidebar-dark-btn" onclick="toggleDark()">
         <i class="fa-solid fa-moon" id="sidebar-dark-icon"></i>
-        <span class="tooltip-pop">Toggle Theme</span>
+        <span class="tooltip-pop tooltip-right">Toggle Theme</span>
       </button>
-      <button class="icon-btn tooltip-wrap" onclick="openModal('kb-modal')" title="Keyboard Shortcuts">
+      <button class="icon-btn tooltip-wrap" onclick="openModal('kb-modal')">
         <i class="fa-solid fa-keyboard"></i>
-        <span class="tooltip-pop">Shortcuts</span>
+        <span class="tooltip-pop tooltip-right">Keyboard Shortcuts</span>
       </button>
-      <button class="icon-btn tooltip-wrap" onclick="openDocumentation()" title="Documentation">
-        <i class="fa-brands fa-github"></i>
-        <span class="tooltip-pop">Documentation</span>
+      <button class="icon-btn tooltip-wrap" onclick="openModal('about-modal')">
+        <i class="fa-solid fa-circle-info"></i>
+        <span class="tooltip-pop tooltip-right">About QR Prism</span>
       </button>
     </div>
   </aside>
 
   <!-- ══════════════════════════════════════════
-       TOPNAV (Tablet 768–1023px)
+       TOPNAV  (Tablet 768–1023px)
   ═══════════════════════════════════════════ -->
   <header class="topnav">
     <a class="topnav-logo" href="#" onclick="switchMode('gen'); return false;">
-      <div class="topnav-logo-icon">
-        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="8" y="8" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
-          <rect x="17" y="17" width="17" height="17" rx="3" fill="currentColor"/>
-          <rect x="57" y="8" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
-          <rect x="66" y="17" width="17" height="17" rx="3" fill="currentColor"/>
-          <rect x="8" y="57" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
-          <rect x="17" y="66" width="17" height="17" rx="3" fill="currentColor"/>
-          <rect x="57" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
-          <rect x="72" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
-          <rect x="57" y="72" width="9" height="9" rx="2" fill="#818CF8"/>
-          <rect x="83" y="83" width="9" height="9" rx="2" fill="#818CF8"/>
-        </svg>
-      </div>
-      <span class="logo-qr">QR</span><span class="logo-prism">Prism</span>
+      <img class="brand-logo brand-logo-dark-bg" src="./assets/logo&name-light.svg" alt="QR Prism" />
+      <img class="brand-logo brand-logo-light-bg" src="./assets/logo&name-dark.svg" alt="QR Prism" />
     </a>
     <div class="topnav-tabs" id="topnav-tabs">
-      <button class="topnav-tab active" data-mode="gen"      onclick="switchMode('gen')"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate</button>
-      <button class="topnav-tab"        data-mode="batch"    onclick="switchMode('batch')"><i class="fa-solid fa-layer-group"></i> Batch</button>
-      <button class="topnav-tab"        data-mode="scan"     onclick="switchMode('scan')"><i class="fa-solid fa-camera-viewfinder"></i> Scan</button>
-      <button class="topnav-tab"        data-mode="projects" onclick="switchMode('projects')"><i class="fa-solid fa-folder-open"></i> Projects</button>
-      <button class="topnav-tab"        data-mode="settings" onclick="switchMode('settings')"><i class="fa-solid fa-gear"></i> Settings</button>
+      <button class="topnav-tab active" data-mode="gen"      onclick="switchMode('gen')">
+        <i class="fa-solid fa-wand-magic-sparkles"></i><span> Generate</span>
+      </button>
+      <button class="topnav-tab"        data-mode="batch"    onclick="switchMode('batch')">
+        <i class="fa-solid fa-layer-group"></i><span> Batch</span>
+      </button>
+      <button class="topnav-tab"        data-mode="scan"     onclick="switchMode('scan')">
+        <i class="fa-solid fa-camera-viewfinder"></i><span> Scan</span>
+      </button>
+      <button class="topnav-tab"        data-mode="projects" onclick="switchMode('projects')">
+        <i class="fa-solid fa-folder-open"></i><span> Projects</span>
+      </button>
+      <button class="topnav-tab"        data-mode="settings" onclick="switchMode('settings')">
+        <i class="fa-solid fa-gear"></i><span> Settings</span>
+      </button>
     </div>
     <div class="topnav-right">
-      <button class="icon-btn" onclick="toggleDark()" id="topnav-dark-btn" title="Toggle Theme"><i class="fa-solid fa-moon" id="topnav-dark-icon"></i></button>
-      <button class="icon-btn" onclick="switchMode('profile')" title="Profile"><i class="fa-solid fa-circle-user" id="topnav-profile-icon"></i></button>
+      <button class="icon-btn" onclick="toggleDark()" title="Toggle Theme">
+        <i class="fa-solid fa-moon" id="topnav-dark-icon"></i>
+      </button>
+      <!-- Logged out: Sign In btn -->
+      <button class="btn btn-primary btn-sm topnav-signin-btn" id="topnav-signin-btn" onclick="openModal('login-modal')">
+        <i class="fa-solid fa-right-to-bracket"></i> Sign In
+      </button>
+      <!-- Logged in: avatar -->
+      <button class="topnav-avatar-btn" id="topnav-avatar-btn" style="display:none;" onclick="switchMode('profile')">
+        <div class="topnav-avatar" id="topnav-avatar">
+          <i class="fa-solid fa-user"></i>
+        </div>
+      </button>
     </div>
   </header>
 
   <!-- ══════════════════════════════════════════
-       MOBILE HEADER (< 768px)
+       MOBILE HEADER  (< 768px)
   ═══════════════════════════════════════════ -->
   <header class="mobile-header">
     <a class="mobile-header-logo" href="#" onclick="switchMode('gen'); return false;">
-      <div class="mobile-header-logo-icon">
-        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="8" y="8" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
-          <rect x="17" y="17" width="17" height="17" rx="3" fill="currentColor"/>
-          <rect x="57" y="8" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
-          <rect x="66" y="17" width="17" height="17" rx="3" fill="currentColor"/>
-          <rect x="8" y="57" width="35" height="35" rx="7" stroke="currentColor" stroke-width="9"/>
-          <rect x="17" y="66" width="17" height="17" rx="3" fill="currentColor"/>
-          <rect x="57" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
-          <rect x="72" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
-          <rect x="57" y="72" width="9" height="9" rx="2" fill="#C084FC"/>
-          <rect x="83" y="83" width="9" height="9" rx="2" fill="#818CF8"/>
-        </svg>
-      </div>
-      <span class="logo-qr">QR</span><span class="logo-prism">Prism</span>
+      <img class="brand-logo brand-logo-dark-bg" src="./assets/logo&name-light.svg" alt="QR Prism" />
+      <img class="brand-logo brand-logo-light-bg" src="./assets/logo&name-dark.svg" alt="QR Prism" />
     </a>
     <div class="mobile-header-actions">
-      <button class="icon-btn" onclick="toggleDark()"><i class="fa-solid fa-moon" id="mobile-dark-icon"></i></button>
-      <button class="icon-btn" onclick="switchMode('profile')">
-        <div class="mobile-avatar-mini" id="mobile-avatar-mini">?</div>
+      <button class="icon-btn" onclick="toggleDark()">
+        <i class="fa-solid fa-moon" id="mobile-dark-icon"></i>
+      </button>
+      <!-- Logged out: Add Account -->
+      <button class="icon-btn mobile-auth-btn" id="mobile-signin-btn" onclick="openModal('login-modal')" title="Sign In">
+        <i class="fa-solid fa-user-plus"></i>
+      </button>
+      <!-- Logged in: mini avatar -->
+      <button class="icon-btn" id="mobile-avatar-btn" style="display:none;" onclick="switchMode('profile')">
+        <div class="mobile-avatar-mini" id="mobile-avatar-mini">
+          <i class="fa-solid fa-user"></i>
+        </div>
       </button>
     </div>
   </header>
@@ -240,40 +270,39 @@
          GENERATOR MODE
     ────────────────────────────────────── -->
     <div id="mode-gen" class="mode-view active">
-      <div class="gen-layout">
 
-        <!-- PREVIEW PANEL (top on mobile/tablet, right on PC) -->
+      <!-- Sticky QR mini-preview (mobile: appears when QR card scrolls away) -->
+      <div class="sticky-qr-bar" id="sticky-qr-bar" style="display:none;">
+        <div class="sqb-canvas-wrap">
+          <canvas id="sqb-canvas"></canvas>
+        </div>
+        <div class="sqb-info">
+          <span class="sqb-type" id="sqb-type">—</span>
+          <span class="sqb-chars" id="sqb-chars">0 chars</span>
+        </div>
+        <button class="sqb-expand" onclick="scrollToPreview()" title="Scroll to QR">
+          <i class="fa-solid fa-chevron-up"></i>
+        </button>
+      </div>
+
+      <div class="gen-layout" id="gen-layout">
+
+        <!-- ── PREVIEW PANEL ── -->
         <div class="preview-panel" id="preview-panel">
 
           <!-- Auto-save status bar -->
           <div class="autosave-bar" id="autosave-bar">
             <span class="autosave-dot" id="autosave-dot"></span>
-            <span id="autosave-txt">Waiting…</span>
+            <span id="autosave-txt">Ready</span>
           </div>
 
-          <!-- QR Canvas -->
+          <!-- QR Card -->
           <div class="qr-card" id="qr-wrap">
             <div class="qr-empty" id="qr-empty">
               <div class="qr-empty-icon">
-                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="64" height="64" opacity=".25">
-                  <rect x="5" y="5" width="38" height="38" rx="6" stroke="currentColor" stroke-width="7"/>
-                  <rect x="14" y="14" width="20" height="20" rx="3" fill="currentColor"/>
-                  <rect x="57" y="5" width="38" height="38" rx="6" stroke="currentColor" stroke-width="7"/>
-                  <rect x="66" y="14" width="20" height="20" rx="3" fill="currentColor"/>
-                  <rect x="5" y="57" width="38" height="38" rx="6" stroke="currentColor" stroke-width="7"/>
-                  <rect x="14" y="66" width="20" height="20" rx="3" fill="currentColor"/>
-                  <rect x="57" y="57" width="9" height="9" fill="currentColor"/>
-                  <rect x="73" y="57" width="9" height="9" fill="currentColor"/>
-                  <rect x="57" y="73" width="9" height="9" fill="currentColor"/>
-                  <rect x="73" y="73" width="9" height="9" fill="currentColor"/>
-                  <rect x="86" y="57" width="9" height="9" fill="currentColor"/>
-                  <rect x="86" y="73" width="9" height="9" fill="currentColor"/>
-                  <rect x="57" y="86" width="9" height="9" fill="currentColor"/>
-                  <rect x="73" y="86" width="9" height="9" fill="currentColor"/>
-                  <rect x="86" y="86" width="9" height="9" fill="currentColor"/>
-                </svg>
+                <i class="fa-solid fa-qrcode" style="font-size:3rem;opacity:.18;"></i>
               </div>
-              <p>Enter content to generate QR code</p>
+              <p class="qr-empty-text">Enter content to generate a QR code</p>
             </div>
             <canvas id="qr-canvas" style="display:none;"></canvas>
             <div class="qr-loading" id="qr-loading" style="display:none;">
@@ -281,10 +310,10 @@
             </div>
           </div>
 
-          <!-- QR Info badges -->
+          <!-- QR info badges -->
           <div class="info-row" id="qr-info-row" style="display:none;">
             <span class="info-badge tooltip-wrap">
-              <i class="fa-solid fa-expand"></i><span id="bi-size">—</span>
+              <i class="fa-solid fa-expand"></i><span id="bi-size">—</span>px
               <span class="tooltip-pop">Canvas Size</span>
             </span>
             <span class="info-badge tooltip-wrap">
@@ -293,11 +322,11 @@
             </span>
             <span class="info-badge tooltip-wrap">
               <i class="fa-solid fa-th"></i><span id="bi-mod">—</span>
-              <span class="tooltip-pop">Module Count</span>
+              <span class="tooltip-pop">Module Grid</span>
             </span>
             <span class="info-badge tooltip-wrap">
-              <i class="fa-solid fa-font"></i><span id="bi-chars">—</span>ch
-              <span class="tooltip-pop">Character Count</span>
+              <i class="fa-solid fa-font"></i><span id="bi-chars">—</span>
+              <span class="tooltip-pop">Characters</span>
             </span>
           </div>
 
@@ -305,6 +334,7 @@
 
           <!-- Action buttons -->
           <div class="action-btns" id="action-btns" style="display:none;">
+            <!-- Download split button -->
             <div class="dl-wrap">
               <div class="dl-split">
                 <button class="dl-main tooltip-wrap" onclick="downloadQR('png')">
@@ -317,16 +347,37 @@
                 </button>
               </div>
               <div class="dl-dropdown" id="dl-dropdown">
-                <div class="dl-item" onclick="downloadQR('png')"><i class="fa-solid fa-image"></i> PNG</div>
-                <div class="dl-item" onclick="downloadQR('jpg')"><i class="fa-solid fa-image"></i> JPG</div>
-                <div class="dl-item" onclick="downloadQR('svg')"><i class="fa-solid fa-code"></i> SVG (Vector)</div>
-                <div class="dl-item" onclick="downloadQR('webp')"><i class="fa-solid fa-image"></i> WebP</div>
+                <div class="dl-item" onclick="downloadQR('png')">
+                  <i class="fa-solid fa-image"></i> PNG
+                </div>
+                <div class="dl-item" onclick="downloadQR('jpg')">
+                  <i class="fa-solid fa-image"></i> JPG
+                </div>
+                <div class="dl-item" onclick="downloadQR('svg')">
+                  <i class="fa-solid fa-code"></i> SVG (Vector)
+                </div>
+                <div class="dl-item" onclick="downloadQR('webp')">
+                  <i class="fa-solid fa-image"></i> WebP
+                </div>
                 <div class="dl-sep"></div>
-                <div class="dl-item" onclick="downloadQR('png2x')"><i class="fa-solid fa-magnifying-glass-plus"></i> PNG 2×</div>
-                <div class="dl-item" onclick="downloadQR('png4x')"><i class="fa-solid fa-magnifying-glass-plus"></i> PNG 4×</div>
-                <div class="dl-item" onclick="downloadQR('pdf')"><i class="fa-solid fa-file-pdf"></i> PDF</div>
+                <div class="dl-item" onclick="downloadQR('png2x')">
+                  <i class="fa-solid fa-magnifying-glass-plus"></i> PNG 2×
+                </div>
+                <div class="dl-item" onclick="downloadQR('png4x')">
+                  <i class="fa-solid fa-magnifying-glass-plus"></i> PNG 4×
+                </div>
+                <div class="dl-item" onclick="downloadQR('pdf')">
+                  <i class="fa-solid fa-file-pdf"></i> PDF
+                </div>
+                <div class="dl-sep"></div>
+                <div class="dl-item dl-transparent-toggle" onclick="toggleTransparentDownload()">
+                  <i class="fa-regular fa-square" id="dl-transparent-icon"></i>
+                  Transparent BG
+                  <span class="dl-badge" id="dl-transparent-badge" style="display:none;">ON</span>
+                </div>
               </div>
             </div>
+
             <div class="btn-row">
               <button class="btn btn-outline tooltip-wrap" onclick="openSaveProjectModal()">
                 <i class="fa-solid fa-floppy-disk"></i> Save Project
@@ -342,7 +393,7 @@
                 <i class="fa-solid fa-share-nodes"></i> Share
                 <span class="tooltip-pop">Share QR Code</span>
               </button>
-              <button class="btn btn-ghost tooltip-wrap" onclick="window.print()">
+              <button class="btn btn-ghost tooltip-wrap" onclick="printQR()">
                 <i class="fa-solid fa-print"></i> Print
                 <span class="tooltip-pop">Print QR Code</span>
               </button>
@@ -369,39 +420,22 @@
           </div>
         </div><!-- /preview-panel -->
 
-        <!-- EDITOR PANEL -->
+        <!-- Resize Handle (desktop only) -->
+        <div class="resize-handle" id="resize-handle" title="Drag to resize">
+          <div class="resize-handle-bar"></div>
+        </div>
+
+        <!-- ── EDITOR PANEL ── -->
         <div class="editor-panel" id="editor-panel">
 
-          <!-- QR TYPE TABS -->
+          <!-- QR TYPE TABS (always visible) -->
           <div class="card type-card">
             <div class="type-tabs-wrap" id="type-tabs"><!-- JS renders --></div>
           </div>
 
-          <!-- TEMPLATES (expandable) -->
-          <div class="card accordion-card" id="templates-card">
-            <button class="card-header" onclick="toggleAccordion(this)">
-              <i class="fa-solid fa-layer-group ch-icon"></i>
-              <span>Templates</span>
-              <span class="card-badge" id="tmpl-badge">0</span>
-              <i class="fa-solid fa-chevron-down arrow"></i>
-            </button>
-            <div class="card-body collapsed">
-              <div class="section-label">Preset Templates</div>
-              <div class="template-grid" id="preset-tgrid"></div>
-              <div class="divider"></div>
-              <div class="section-row">
-                <div class="section-label" style="margin:0;">My Templates</div>
-                <button class="btn btn-primary btn-sm" onclick="openSaveTemplateModal()">
-                  <i class="fa-solid fa-bookmark"></i> Save Current
-                </button>
-              </div>
-              <div id="saved-tlist" class="saved-template-list"></div>
-            </div>
-          </div>
-
-          <!-- INPUT FORM (always visible conceptually, but collapsible) -->
+          <!-- DATA INPUT FORM (always open, independent) -->
           <div class="card accordion-card" id="form-card">
-            <button class="card-header open" onclick="toggleAccordion(this)">
+            <button class="card-header open" onclick="toggleFormCard(this)">
               <i class="fa-solid fa-pencil ch-icon"></i>
               <span id="form-title">Website URL</span>
               <i class="fa-solid fa-chevron-down arrow"></i>
@@ -411,12 +445,40 @@
             </div>
           </div>
 
+          <!-- TEMPLATES (below form, part of accordion group) -->
+          <div class="card accordion-card" id="templates-card">
+            <button class="card-header" onclick="toggleAccordion(this)">
+              <i class="fa-solid fa-layer-group ch-icon"></i>
+              <span>Templates</span>
+              <span class="card-badge" id="tmpl-badge" style="display:none;">0</span>
+              <i class="fa-solid fa-chevron-down arrow"></i>
+            </button>
+            <div class="card-body collapsed">
+              <!-- App Preset Templates -->
+              <div class="section-label">Preset Templates</div>
+              <div class="template-scroll-area">
+                <div class="template-grid" id="preset-tgrid"></div>
+              </div>
+              <div class="divider"></div>
+              <!-- User Templates -->
+              <div class="section-row">
+                <div class="section-label" style="margin:0;">My Templates</div>
+                <button class="btn btn-primary btn-sm" onclick="openSaveTemplateModal()">
+                  <i class="fa-solid fa-bookmark"></i> Save Current
+                </button>
+              </div>
+              <div class="template-scroll-area">
+                <div id="saved-tlist" class="saved-template-list"></div>
+              </div>
+            </div>
+          </div>
+
           <!-- OPTIONS -->
           <div class="card accordion-card" id="options-card">
             <button class="card-header" onclick="toggleAccordion(this)">
               <i class="fa-solid fa-sliders ch-icon"></i>
               <span>Options</span>
-              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
+              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" onclick="event.stopPropagation()">
                 <span class="tooltip-pop">Size, error correction, quiet zone settings</span>
               </i>
               <i class="fa-solid fa-chevron-down arrow"></i>
@@ -426,19 +488,20 @@
                 <div class="opts-col">
                   <div class="field-label">
                     Size (px)
-                    <i class="fa-solid fa-circle-info info-icon tooltip-wrap">
-                      <span class="tooltip-pop">Canvas size in pixels. Higher = better quality.</span>
+                    <i class="fa-solid fa-circle-info info-icon tooltip-wrap" onclick="event.stopPropagation()">
+                      <span class="tooltip-pop">Canvas output size in pixels. Higher = sharper quality.</span>
                     </i>
                   </div>
                   <div class="num-wrap">
                     <button class="num-btn" onclick="adjSize(-50)">−</button>
-                    <input type="number" class="input num-input" id="qr-size" value="600" min="100" max="2000"
+                    <input type="number" class="input num-input" id="qr-size" value="600" min="100" max="4000"
                            oninput="S.size=parseInt(this.value)||600; schedRender()">
                     <button class="num-btn" onclick="adjSize(50)">+</button>
                   </div>
                   <div class="size-chips">
                     <button class="chip" onclick="setSize(300)">300</button>
                     <button class="chip" onclick="setSize(512)">512</button>
+                    <button class="chip active" onclick="setSize(600)">600</button>
                     <button class="chip" onclick="setSize(1024)">1K</button>
                     <button class="chip" onclick="setSize(2048)">2K</button>
                   </div>
@@ -446,16 +509,17 @@
                 <div class="opts-col">
                   <div class="field-label">
                     Error Correction
-                    <i class="fa-solid fa-circle-info info-icon tooltip-wrap">
-                      <span class="tooltip-pop">Higher = more damage resistant. Use H when adding a logo.</span>
+                    <i class="fa-solid fa-circle-info info-icon tooltip-wrap" onclick="event.stopPropagation()">
+                      <span class="tooltip-pop">Higher level = more data redundancy. Use H when adding a logo. L=7%, M=15%, Q=25%, H=30%.</span>
                     </i>
                   </div>
-                  <select class="select" id="ec-level" onchange="S.ec=this.value; schedRender()">
-                    <option value="L">L – Low (7%)</option>
-                    <option value="M">M – Medium (15%)</option>
-                    <option value="Q">Q – Quartile (25%)</option>
-                    <option value="H" selected>H – Best (30%)</option>
-                  </select>
+                  <div class="ec-btns" id="ec-btns">
+                    <button class="ec-btn" data-ec="L" onclick="setEC('L',this)">L</button>
+                    <button class="ec-btn" data-ec="M" onclick="setEC('M',this)">M</button>
+                    <button class="ec-btn" data-ec="Q" onclick="setEC('Q',this)">Q</button>
+                    <button class="ec-btn active" data-ec="H" onclick="setEC('H',this)">H</button>
+                  </div>
+                  <div class="ec-hint" id="ec-hint">High (30% recovery)</div>
                 </div>
               </div>
               <div class="slider-row mt-10">
@@ -465,7 +529,12 @@
                 <span class="s-val" id="qz-val">4 mod</span>
               </div>
               <div class="toggle-row mt-8">
-                <label>Improve Scanability</label>
+                <label>
+                  Improve Scanability
+                  <i class="fa-solid fa-circle-info info-icon tooltip-wrap" onclick="event.stopPropagation()">
+                    <span class="tooltip-pop">Boosts contrast and module clarity for better scanner detection.</span>
+                  </i>
+                </label>
                 <label class="toggle">
                   <input type="checkbox" id="scan-opt" onchange="S.scanOpt=this.checked; schedRender()">
                   <span class="toggle-slider"></span>
@@ -474,37 +543,101 @@
             </div>
           </div>
 
-          <!-- COLORS -->
+          <!-- COLORS (redesigned: BG / FG / Eye Colors) -->
           <div class="card accordion-card" id="colors-card">
             <button class="card-header" onclick="toggleAccordion(this)">
               <i class="fa-solid fa-palette ch-icon"></i>
               <span>Colors</span>
-              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
-                <span class="tooltip-pop">Foreground, background, gradient, marker and eye colors</span>
+              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" onclick="event.stopPropagation()">
+                <span class="tooltip-pop">Background, foreground, gradient and eye colors</span>
               </i>
               <i class="fa-solid fa-chevron-down arrow"></i>
             </button>
             <div class="card-body collapsed">
               <div class="color-tabs" id="color-tabs">
-                <button class="ctab active" onclick="switchCTab(0,this)"><i class="fa-solid fa-circle"></i> FG/BG</button>
-                <button class="ctab" onclick="switchCTab(1,this)"><i class="fa-solid fa-qrcode"></i> Marker</button>
-                <button class="ctab" onclick="switchCTab(2,this)"><i class="fa-solid fa-circle-half-stroke"></i> Eye Frame</button>
-                <button class="ctab" onclick="switchCTab(3,this)"><i class="fa-regular fa-circle"></i> Eye Inner</button>
+                <button class="ctab active" data-ctab="0" onclick="switchCTab(0,this)">
+                  <i class="fa-solid fa-fill-drip"></i> Background
+                </button>
+                <button class="ctab" data-ctab="1" onclick="switchCTab(1,this)">
+                  <i class="fa-solid fa-circle"></i> Foreground
+                </button>
+                <button class="ctab" data-ctab="2" onclick="switchCTab(2,this)">
+                  <i class="fa-solid fa-eye"></i> Eye Colors
+                </button>
               </div>
 
-              <!-- FG/BG -->
+              <!-- TAB 0: Background -->
               <div class="csub active" id="ctab-0">
+                <div class="bg-mode-btns">
+                  <button class="bg-mode-btn active" data-bgmode="solid" onclick="setBGMode('solid',this)">
+                    <i class="fa-solid fa-square"></i> Solid
+                  </button>
+                  <button class="bg-mode-btn" data-bgmode="gradient" onclick="setBGMode('gradient',this)">
+                    <i class="fa-solid fa-circle-half-stroke"></i> Gradient
+                  </button>
+                  <button class="bg-mode-btn" data-bgmode="transparent" onclick="setBGMode('transparent',this)">
+                    <i class="fa-solid fa-chess-board"></i> Transparent
+                  </button>
+                </div>
+                <!-- Solid BG -->
+                <div id="bg-solid-opts" class="sub-panel">
+                  <div class="color-row">
+                    <span class="c-label">Color</span>
+                    <div class="pickr-wrap" id="bg-pickr-wrap"></div>
+                  </div>
+                </div>
+                <!-- Gradient BG -->
+                <div id="bg-gradient-opts" class="sub-panel" style="display:none;">
+                  <div class="two-col">
+                    <div>
+                      <div class="field-label">Color 1</div>
+                      <div class="pickr-wrap" id="bgc1-pickr-wrap"></div>
+                    </div>
+                    <div>
+                      <div class="field-label">Color 2</div>
+                      <div class="pickr-wrap" id="bgc2-pickr-wrap"></div>
+                    </div>
+                  </div>
+                  <div class="two-col mt-10">
+                    <div>
+                      <div class="field-label">Type</div>
+                      <select class="select" id="bg-grad-type" onchange="S.bgGType=this.value; schedRender()">
+                        <option value="linear">Linear</option>
+                        <option value="radial">Radial</option>
+                      </select>
+                    </div>
+                    <div>
+                      <div class="field-label">Angle</div>
+                      <div class="slider-row">
+                        <input type="range" class="range" id="bg-grad-angle" min="0" max="360" value="135"
+                               oninput="S.bgGAngle=parseInt(this.value); document.getElementById('bga-val').textContent=this.value+'°'; schedRender()">
+                        <span class="s-val" id="bga-val">135°</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <!-- Transparent hint -->
+                <div id="bg-transparent-opts" class="sub-panel transparent-hint" style="display:none;">
+                  <i class="fa-solid fa-chess-board"></i>
+                  <span>Background will be transparent when exported to PNG, WebP or SVG.</span>
+                </div>
+              </div>
+
+              <!-- TAB 1: Foreground -->
+              <div class="csub" id="ctab-1">
                 <div class="color-row">
-                  <span class="c-label">Foreground</span>
+                  <span class="c-label">Color</span>
                   <div class="pickr-wrap" id="fg-pickr-wrap"></div>
                 </div>
-                <div class="color-row">
-                  <span class="c-label">Background</span>
-                  <div class="pickr-wrap" id="bg-pickr-wrap"></div>
+                <div class="toggle-row mt-10">
+                  <label>Enable Gradient</label>
+                  <label class="toggle">
+                    <input type="checkbox" id="fg-use-grad"
+                           onchange="S.fgGradient=this.checked; document.getElementById('fg-grad-opts').style.display=this.checked?'block':'none'; schedRender()">
+                    <span class="toggle-slider"></span>
+                  </label>
                 </div>
-                <div class="toggle-row"><label>Transparent Background</label><label class="toggle"><input type="checkbox" id="transparent" onchange="S.transparent=this.checked; schedRender()"><span class="toggle-slider"></span></label></div>
-                <div class="toggle-row"><label>Enable Gradient</label><label class="toggle"><input type="checkbox" id="use-grad" onchange="S.gradient=this.checked; document.getElementById('grad-opts').style.display=this.checked?'block':'none'; schedRender()"><span class="toggle-slider"></span></label></div>
-                <div id="grad-opts" style="display:none;" class="sub-panel">
+                <div id="fg-grad-opts" class="sub-panel" style="display:none;">
                   <div class="two-col">
                     <div>
                       <div class="field-label">Color 1</div>
@@ -516,46 +649,99 @@
                     </div>
                   </div>
                   <div class="two-col mt-10">
-                    <div><div class="field-label">Type</div><select class="select" id="grad-type" onchange="S.gType=this.value; schedRender()"><option value="linear">Linear</option><option value="radial">Radial</option></select></div>
-                    <div><div class="field-label">Angle</div><div class="slider-row"><input type="range" class="range" id="grad-angle" min="0" max="360" value="45" oninput="S.gAngle=parseInt(this.value); document.getElementById('ga-val').textContent=this.value+'°'; schedRender()"><span class="s-val" id="ga-val">45°</span></div></div>
+                    <div>
+                      <div class="field-label">Type</div>
+                      <select class="select" id="grad-type" onchange="S.gType=this.value; schedRender()">
+                        <option value="linear">Linear</option>
+                        <option value="radial">Radial</option>
+                      </select>
+                    </div>
+                    <div>
+                      <div class="field-label">Angle</div>
+                      <div class="slider-row">
+                        <input type="range" class="range" id="grad-angle" min="0" max="360" value="45"
+                               oninput="S.gAngle=parseInt(this.value); document.getElementById('ga-val').textContent=this.value+'°'; schedRender()">
+                        <span class="s-val" id="ga-val">45°</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <!-- Marker -->
-              <div class="csub" id="ctab-1">
-                <div class="toggle-row"><label>Custom Marker Color</label><label class="toggle"><input type="checkbox" id="custom-marker" onchange="S.customMarker=this.checked; document.getElementById('marker-opts').style.display=this.checked?'block':'none'; schedRender()"><span class="toggle-slider"></span></label></div>
-                <div id="marker-opts" style="display:none;" class="sub-panel">
-                  <div class="color-row"><span class="c-label">Border</span><div class="pickr-wrap" id="mb-pickr-wrap"></div></div>
-                  <div class="color-row"><span class="c-label">Center</span><div class="pickr-wrap" id="mc-pickr-wrap"></div></div>
-                </div>
-              </div>
-
-              <!-- Eye Frame -->
+              <!-- TAB 2: Eye Colors -->
               <div class="csub" id="ctab-2">
-                <div class="toggle-row"><label>Custom Eye Frame Color</label><label class="toggle"><input type="checkbox" id="custom-ef" onchange="S.customEF=this.checked; document.getElementById('ef-opts').style.display=this.checked?'block':'none'; schedRender()"><span class="toggle-slider"></span></label></div>
-                <div id="ef-opts" style="display:none;" class="sub-panel">
-                  <div class="color-row"><span class="c-label">Eye Frame</span><div class="pickr-wrap" id="ef-pickr-wrap"></div></div>
+                <p class="color-tab-hint">
+                  <i class="fa-solid fa-circle-info"></i>
+                  By default, eyes use the foreground color. Enable below to override with custom colors.
+                  When active, the transparent area between eye frame and inner will remain transparent.
+                </p>
+                <div class="toggle-row">
+                  <label>Custom Eye Colors</label>
+                  <label class="toggle">
+                    <input type="checkbox" id="custom-eye-colors"
+                           onchange="S.customEyeColors=this.checked; document.getElementById('eye-color-opts').style.display=this.checked?'block':'none'; schedRender()">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div id="eye-color-opts" style="display:none;" class="sub-panel">
+                  <!-- Eye Frame -->
+                  <div class="eye-color-section">
+                    <div class="field-label">Eye Frame (Outer)</div>
+                    <div class="color-row">
+                      <span class="c-label">Color</span>
+                      <div class="pickr-wrap" id="ef-pickr-wrap"></div>
+                    </div>
+                    <div class="toggle-row mt-6">
+                      <label>Apply gradient to frame</label>
+                      <label class="toggle">
+                        <input type="checkbox" id="ef-use-grad"
+                               onchange="S.efGradient=this.checked; document.getElementById('ef-grad-opts').style.display=this.checked?'block':'none'; schedRender()">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                    <div id="ef-grad-opts" class="sub-panel" style="display:none;">
+                      <div class="two-col">
+                        <div><div class="field-label">Color 1</div><div class="pickr-wrap" id="efc1-pickr-wrap"></div></div>
+                        <div><div class="field-label">Color 2</div><div class="pickr-wrap" id="efc2-pickr-wrap"></div></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="divider"></div>
+                  <!-- Eye Inner -->
+                  <div class="eye-color-section">
+                    <div class="field-label">Eye Inner (Center)</div>
+                    <div class="color-row">
+                      <span class="c-label">Color</span>
+                      <div class="pickr-wrap" id="ei-pickr-wrap"></div>
+                    </div>
+                    <div class="toggle-row mt-6">
+                      <label>Apply gradient to inner</label>
+                      <label class="toggle">
+                        <input type="checkbox" id="ei-use-grad"
+                               onchange="S.eiGradient=this.checked; document.getElementById('ei-grad-opts').style.display=this.checked?'block':'none'; schedRender()">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                    <div id="ei-grad-opts" class="sub-panel" style="display:none;">
+                      <div class="two-col">
+                        <div><div class="field-label">Color 1</div><div class="pickr-wrap" id="eic1-pickr-wrap"></div></div>
+                        <div><div class="field-label">Color 2</div><div class="pickr-wrap" id="eic2-pickr-wrap"></div></div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <!-- Eye Inner -->
-              <div class="csub" id="ctab-3">
-                <div class="toggle-row"><label>Custom Eye Inner Color</label><label class="toggle"><input type="checkbox" id="custom-ei" onchange="S.customEI=this.checked; document.getElementById('ei-opts').style.display=this.checked?'block':'none'; schedRender()"><span class="toggle-slider"></span></label></div>
-                <div id="ei-opts" style="display:none;" class="sub-panel">
-                  <div class="color-row"><span class="c-label">Eye Inner</span><div class="pickr-wrap" id="ei-pickr-wrap"></div></div>
-                </div>
-              </div>
             </div>
           </div>
 
-          <!-- PATTERNS -->
+          <!-- PATTERNS & EYES -->
           <div class="card accordion-card" id="patterns-card">
             <button class="card-header" onclick="toggleAccordion(this)">
               <i class="fa-solid fa-grip ch-icon"></i>
               <span>Patterns & Eyes</span>
-              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
-                <span class="tooltip-pop">Dot design, eye frame, and eye inner shapes</span>
+              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" onclick="event.stopPropagation()">
+                <span class="tooltip-pop">Dot module design, eye frame shape, and eye inner shape</span>
               </i>
               <i class="fa-solid fa-chevron-down arrow"></i>
             </button>
@@ -565,9 +751,50 @@
                 <div class="stab" onclick="switchStab('pat',1,this)">Eye Frame</div>
                 <div class="stab" onclick="switchStab('pat',2,this)">Eye Inner</div>
               </div>
-              <div class="spanel active" id="pat-0"><div class="pattern-grid" id="design-grid"></div></div>
-              <div class="spanel" id="pat-1"><div class="pattern-grid" id="eyeframe-grid"></div></div>
-              <div class="spanel" id="pat-2"><div class="pattern-grid" id="eyeinner-grid"></div></div>
+
+              <!-- Dot Design -->
+              <div class="spanel active" id="pat-0">
+                <!-- Module gap & inner eye scale sliders -->
+                <div class="slider-row mb-8">
+                  <span class="s-label tooltip-wrap">
+                    Module Gap
+                    <i class="fa-solid fa-circle-info info-icon" onclick="event.stopPropagation()">
+                      <span class="tooltip-pop">Space between dot modules. Custom SVG gap override.</span>
+                    </i>
+                  </span>
+                  <input type="range" class="range" id="module-gap" min="0" max="20" value="0"
+                         oninput="S.moduleGap=parseInt(this.value)/100; document.getElementById('mg-val').textContent=this.value+'%'; schedRender()">
+                  <span class="s-val" id="mg-val">0%</span>
+                </div>
+                <div class="slider-row mb-12">
+                  <span class="s-label tooltip-wrap">
+                    Eye Scale
+                    <i class="fa-solid fa-circle-info info-icon" onclick="event.stopPropagation()">
+                      <span class="tooltip-pop">Scale of the eye (position detection) squares.</span>
+                    </i>
+                  </span>
+                  <input type="range" class="range" id="eye-scale" min="70" max="130" value="100"
+                         oninput="S.eyeScale=parseInt(this.value)/100; document.getElementById('es-val').textContent=this.value+'%'; schedRender()">
+                  <span class="s-val" id="es-val">100%</span>
+                </div>
+                <div class="pattern-grid-scroll">
+                  <div class="pattern-grid" id="design-grid"></div>
+                </div>
+              </div>
+
+              <!-- Eye Frame -->
+              <div class="spanel" id="pat-1">
+                <div class="pattern-grid-scroll">
+                  <div class="pattern-grid" id="eyeframe-grid"></div>
+                </div>
+              </div>
+
+              <!-- Eye Inner -->
+              <div class="spanel" id="pat-2">
+                <div class="pattern-grid-scroll">
+                  <div class="pattern-grid" id="eyeinner-grid"></div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -576,8 +803,8 @@
             <button class="card-header" onclick="toggleAccordion(this)">
               <i class="fa-solid fa-image ch-icon"></i>
               <span>Logo</span>
-              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
-                <span class="tooltip-pop">Embed a logo or brand icon in the center of the QR</span>
+              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" onclick="event.stopPropagation()">
+                <span class="tooltip-pop">Embed a logo or brand icon in the center of the QR code</span>
               </i>
               <i class="fa-solid fa-chevron-down arrow"></i>
             </button>
@@ -601,10 +828,31 @@
               <div class="logo-grid" id="logo-grid"></div>
               <div class="divider"></div>
               <div class="section-label">Logo Options</div>
-              <div class="toggle-row"><label>Remove Background</label><label class="toggle"><input type="checkbox" id="logo-rmbg" checked onchange="S.logoRemoveBG=this.checked; schedRender()"><span class="toggle-slider"></span></label></div>
-              <div class="slider-row mt-10"><span class="s-label">Size</span><input type="range" class="range" id="logo-size" min="10" max="50" value="25" oninput="S.logoSize=parseInt(this.value); document.getElementById('ls-val').textContent=this.value+'%'; schedRender()"><span class="s-val" id="ls-val">25%</span></div>
-              <div class="slider-row"><span class="s-label">Border Radius</span><input type="range" class="range" id="logo-br" min="0" max="50" value="0" oninput="S.logoBR=parseInt(this.value); document.getElementById('lbr-val').textContent=this.value+'%'; schedRender()"><span class="s-val" id="lbr-val">0%</span></div>
-              <div class="slider-row"><span class="s-label">Padding</span><input type="range" class="range" id="logo-pad" min="0" max="20" value="4" oninput="S.logoPad=parseInt(this.value); document.getElementById('lp-val').textContent=this.value+'px'; schedRender()"><span class="s-val" id="lp-val">4px</span></div>
+              <div class="toggle-row">
+                <label>Remove Background</label>
+                <label class="toggle">
+                  <input type="checkbox" id="logo-rmbg" checked onchange="S.logoRemoveBG=this.checked; schedRender()">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="slider-row mt-10">
+                <span class="s-label">Size</span>
+                <input type="range" class="range" id="logo-size" min="10" max="50" value="25"
+                       oninput="S.logoSize=parseInt(this.value); document.getElementById('ls-val').textContent=this.value+'%'; schedRender()">
+                <span class="s-val" id="ls-val">25%</span>
+              </div>
+              <div class="slider-row">
+                <span class="s-label">Border Radius</span>
+                <input type="range" class="range" id="logo-br" min="0" max="50" value="0"
+                       oninput="S.logoBR=parseInt(this.value); document.getElementById('lbr-val').textContent=this.value+'%'; schedRender()">
+                <span class="s-val" id="lbr-val">0%</span>
+              </div>
+              <div class="slider-row">
+                <span class="s-label">Padding</span>
+                <input type="range" class="range" id="logo-pad" min="0" max="20" value="4"
+                       oninput="S.logoPad=parseInt(this.value); document.getElementById('lp-val').textContent=this.value+'px'; schedRender()">
+                <span class="s-val" id="lp-val">4px</span>
+              </div>
               <div class="color-row mt-6">
                 <span class="c-label">Padding Color</span>
                 <div class="pickr-wrap" id="lpc-pickr-wrap"></div>
@@ -617,7 +865,7 @@
             <button class="card-header" onclick="toggleAccordion(this)">
               <i class="fa-regular fa-square ch-icon"></i>
               <span>Frame</span>
-              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
+              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" onclick="event.stopPropagation()">
                 <span class="tooltip-pop">Add a decorative frame with optional label text</span>
               </i>
               <i class="fa-solid fa-chevron-down arrow"></i>
@@ -627,21 +875,76 @@
                 <div class="stab active" onclick="switchStab('frame',0,this)">With Label</div>
                 <div class="stab" onclick="switchStab('frame',1,this)">Without Label</div>
               </div>
+
+              <!-- With Label -->
               <div class="spanel active" id="frame-0">
-                <div class="two-col" style="margin-bottom:12px;">
-                  <div class="fg"><label class="field-label">Label Text</label><input class="input" id="frame-label" value="Scan Me" oninput="S.frameLabel=this.value; schedRender()"></div>
-                  <div class="fg"><label class="field-label">Font</label><select class="select" id="frame-font" onchange="S.frameFont=this.value; schedRender()"><option>Poppins</option><option>Roboto</option><option>Montserrat</option><option>Open Sans</option><option>Oswald</option><option>Raleway</option></select></div>
-                </div>
-                <div class="slider-row mb-10"><span class="s-label">Text Size</span><input type="range" class="range" id="frame-ts" min="50" max="200" value="100" oninput="S.frameTSize=parseInt(this.value); document.getElementById('fts-v').textContent=this.value+'%'; schedRender()"><span class="s-val" id="fts-v">100%</span></div>
                 <div class="two-col mb-12">
-                  <div><div class="field-label">Label Color</div><div class="pickr-wrap" id="flc-pickr-wrap"></div></div>
-                  <div><div class="field-label">Frame Color</div><div class="pickr-wrap" id="fc-pickr-wrap"></div></div>
+                  <div class="fg">
+                    <label class="field-label">Label Text</label>
+                    <input class="input" id="frame-label" value="Scan Me" oninput="S.frameLabel=this.value; schedRender()">
+                  </div>
+                  <div class="fg">
+                    <label class="field-label">Font</label>
+                    <select class="select" id="frame-font" onchange="S.frameFont=this.value; schedRender()">
+                      <option value="Outfit">Outfit</option>
+                      <option value="Poppins">Poppins</option>
+                      <option value="DM Sans">DM Sans</option>
+                      <option value="Space Grotesk">Space Grotesk</option>
+                      <option value="Roboto">Roboto</option>
+                      <option value="Montserrat">Montserrat</option>
+                      <option value="Open Sans">Open Sans</option>
+                      <option value="Oswald">Oswald</option>
+                    </select>
+                  </div>
                 </div>
-                <div class="frame-grid" id="frame-label-grid"></div>
+                <div class="slider-row mb-12">
+                  <span class="s-label">Text Size</span>
+                  <input type="range" class="range" id="frame-ts" min="50" max="200" value="100"
+                         oninput="S.frameTSize=parseInt(this.value); document.getElementById('fts-v').textContent=this.value+'%'; schedRender()">
+                  <span class="s-val" id="fts-v">100%</span>
+                </div>
+                <div class="two-col mb-12">
+                  <div>
+                    <div class="field-label">Label Color</div>
+                    <div class="pickr-wrap" id="flc-pickr-wrap"></div>
+                  </div>
+                  <div>
+                    <div class="field-label">Frame Color</div>
+                    <div class="pickr-wrap" id="fc-pickr-wrap"></div>
+                  </div>
+                </div>
+                <!-- Frame padding -->
+                <div class="slider-row mb-12">
+                  <span class="s-label tooltip-wrap">
+                    Padding
+                    <i class="fa-solid fa-circle-info info-icon" onclick="event.stopPropagation()">
+                      <span class="tooltip-pop">Uniform padding between QR and frame border.</span>
+                    </i>
+                  </span>
+                  <input type="range" class="range" id="frame-pad" min="0" max="60" value="16"
+                         oninput="S.framePad=parseInt(this.value); document.getElementById('fp-v').textContent=this.value+'px'; schedRender()">
+                  <span class="s-val" id="fp-v">16px</span>
+                </div>
+                <div class="pattern-grid-scroll">
+                  <div class="frame-grid" id="frame-label-grid"></div>
+                </div>
               </div>
+
+              <!-- Without Label -->
               <div class="spanel" id="frame-1">
-                <div class="color-row mb-12"><span class="c-label">Frame Color</span><div class="pickr-wrap" id="fc2-pickr-wrap"></div></div>
-                <div class="frame-grid" id="frame-nolabel-grid"></div>
+                <div class="color-row mb-12">
+                  <span class="c-label">Frame Color</span>
+                  <div class="pickr-wrap" id="fc2-pickr-wrap"></div>
+                </div>
+                <div class="slider-row mb-12">
+                  <span class="s-label">Padding</span>
+                  <input type="range" class="range" id="frame-pad2" min="0" max="60" value="16"
+                         oninput="S.framePad2=parseInt(this.value); document.getElementById('fp2-v').textContent=this.value+'px'; schedRender()">
+                  <span class="s-val" id="fp2-v">16px</span>
+                </div>
+                <div class="pattern-grid-scroll">
+                  <div class="frame-grid" id="frame-nolabel-grid"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -651,32 +954,115 @@
             <button class="card-header" onclick="toggleAccordion(this)">
               <i class="fa-solid fa-gear ch-icon"></i>
               <span>Advanced</span>
-              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
-                <span class="tooltip-pop">Rotation, flip, filters, shadow effects</span>
+              <i class="fa-solid fa-circle-info info-icon tooltip-wrap" onclick="event.stopPropagation()">
+                <span class="tooltip-pop">Rotation, flip, CSS filters, shadow effects</span>
               </i>
               <i class="fa-solid fa-chevron-down arrow"></i>
             </button>
             <div class="card-body collapsed">
               <div class="two-col mb-12">
-                <div class="fg"><label class="field-label">Rotation</label><select class="select" id="qr-rotation" onchange="S.rotation=parseInt(this.value); schedRender()"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select></div>
-                <div class="fg"><label class="field-label">CSS Filter</label><select class="select" id="qr-filter" onchange="S.filter=this.value; schedRender()"><option value="none">None</option><option value="grayscale(100%)">Grayscale</option><option value="sepia(80%)">Sepia</option><option value="invert(100%)">Invert</option><option value="contrast(150%)">High Contrast</option><option value="hue-rotate(180deg)">Hue Shift</option></select></div>
+                <div class="fg">
+                  <label class="field-label">Rotation</label>
+                  <select class="select" id="qr-rotation" onchange="S.rotation=parseInt(this.value); schedRender()">
+                    <option value="0">0°</option>
+                    <option value="90">90°</option>
+                    <option value="180">180°</option>
+                    <option value="270">270°</option>
+                  </select>
+                </div>
+                <div class="fg">
+                  <label class="field-label">CSS Filter</label>
+                  <select class="select" id="qr-filter" onchange="S.filter=this.value; schedRender()">
+                    <option value="none">None</option>
+                    <option value="grayscale(100%)">Grayscale</option>
+                    <option value="sepia(80%)">Sepia</option>
+                    <option value="invert(100%)">Invert</option>
+                    <option value="contrast(150%)">High Contrast</option>
+                    <option value="hue-rotate(180deg)">Hue Shift</option>
+                    <option value="blur(1px)">Soft Blur</option>
+                  </select>
+                </div>
               </div>
-              <div class="toggle-row"><label>Flip Horizontal</label><label class="toggle"><input type="checkbox" id="flip-h" onchange="S.flipH=this.checked; schedRender()"><span class="toggle-slider"></span></label></div>
-              <div class="toggle-row"><label>Flip Vertical</label><label class="toggle"><input type="checkbox" id="flip-v" onchange="S.flipV=this.checked; schedRender()"><span class="toggle-slider"></span></label></div>
-              <div class="toggle-row"><label>Invert Colors</label><label class="toggle"><input type="checkbox" id="invert-c" onchange="S.invert=this.checked; schedRender()"><span class="toggle-slider"></span></label></div>
+              <div class="toggle-row">
+                <label>Flip Horizontal</label>
+                <label class="toggle">
+                  <input type="checkbox" id="flip-h" onchange="S.flipH=this.checked; schedRender()">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="toggle-row">
+                <label>Flip Vertical</label>
+                <label class="toggle">
+                  <input type="checkbox" id="flip-v" onchange="S.flipV=this.checked; schedRender()">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="toggle-row">
+                <label>Invert Colors</label>
+                <label class="toggle">
+                  <input type="checkbox" id="invert-c" onchange="S.invert=this.checked; schedRender()">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
               <div class="divider"></div>
-              <div class="toggle-row"><label>Enable Shadow</label><label class="toggle"><input type="checkbox" id="use-shadow" onchange="S.shadow=this.checked; document.getElementById('shadow-opts').style.display=this.checked?'block':'none'; schedRender()"><span class="toggle-slider"></span></label></div>
+              <div class="toggle-row">
+                <label>Enable Shadow</label>
+                <label class="toggle">
+                  <input type="checkbox" id="use-shadow"
+                         onchange="S.shadow=this.checked; document.getElementById('shadow-opts').style.display=this.checked?'block':'none'; schedRender()">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
               <div id="shadow-opts" style="display:none;" class="sub-panel">
-                <div class="color-row"><span class="c-label">Shadow Color</span><div class="pickr-wrap" id="sc-pickr-wrap"></div></div>
-                <div class="slider-row"><span class="s-label">Blur</span><input type="range" class="range" id="shadow-blur" min="0" max="40" value="10" oninput="S.shadowBlur=parseInt(this.value); document.getElementById('sb-v').textContent=this.value+'px'; schedRender()"><span class="s-val" id="sb-v">10px</span></div>
+                <div class="color-row">
+                  <span class="c-label">Shadow Color</span>
+                  <div class="pickr-wrap" id="sc-pickr-wrap"></div>
+                </div>
+                <div class="slider-row">
+                  <span class="s-label">Blur</span>
+                  <input type="range" class="range" id="shadow-blur" min="0" max="60" value="10"
+                         oninput="S.shadowBlur=parseInt(this.value); document.getElementById('sb-v').textContent=this.value+'px'; schedRender()">
+                  <span class="s-val" id="sb-v">10px</span>
+                </div>
+                <div class="slider-row">
+                  <span class="s-label">Offset X</span>
+                  <input type="range" class="range" id="shadow-x" min="-30" max="30" value="0"
+                         oninput="S.shadowX=parseInt(this.value); document.getElementById('sx-v').textContent=this.value+'px'; schedRender()">
+                  <span class="s-val" id="sx-v">0px</span>
+                </div>
+                <div class="slider-row">
+                  <span class="s-label">Offset Y</span>
+                  <input type="range" class="range" id="shadow-y" min="-30" max="30" value="4"
+                         oninput="S.shadowY=parseInt(this.value); document.getElementById('sy-v').textContent=this.value+'px'; schedRender()">
+                  <span class="s-val" id="sy-v">4px</span>
+                </div>
               </div>
               <div class="divider"></div>
               <!-- Analytics -->
+              <div class="adv-analytics-header" id="adv-analytics-header" style="display:none;">
+                <span class="section-label" style="margin:0;">QR Analytics</span>
+                <button class="btn btn-ghost btn-xs" onclick="openModal('scanability-modal')">
+                  <i class="fa-solid fa-chart-simple"></i> Scanability
+                </button>
+              </div>
               <div class="analytics-grid" id="adv-analytics" style="display:none;">
-                <div class="a-item"><div class="a-val" id="a-chars">—</div><div class="a-lbl">Characters</div></div>
-                <div class="a-item"><div class="a-val" id="a-version">—</div><div class="a-lbl">QR Version</div></div>
-                <div class="a-item"><div class="a-val" id="a-modules">—</div><div class="a-lbl">Modules</div></div>
-                <div class="a-item"><div class="a-val" id="a-scan" style="font-size:.78rem;">—</div><div class="a-lbl">Scanability</div></div>
+                <div class="a-item">
+                  <div class="a-val" id="a-chars">—</div>
+                  <div class="a-lbl">Characters</div>
+                </div>
+                <div class="a-item">
+                  <div class="a-val" id="a-version">—</div>
+                  <div class="a-lbl">QR Version</div>
+                </div>
+                <div class="a-item">
+                  <div class="a-val" id="a-modules">—</div>
+                  <div class="a-lbl">Modules</div>
+                </div>
+                <div class="a-item a-item-scan" onclick="openModal('scanability-modal')" title="Click for details">
+                  <div class="a-val a-val-scan" id="a-scan">—</div>
+                  <div class="a-lbl">Scanability</div>
+                  <i class="fa-solid fa-circle-info a-info"></i>
+                </div>
               </div>
               <div id="warn-bar" class="warn-bar" style="display:none; margin-top:10px;"></div>
             </div>
@@ -685,6 +1071,7 @@
         </div><!-- /editor-panel -->
       </div><!-- /gen-layout -->
     </div><!-- /mode-gen -->
+
 
     <!-- ─────────────────────────────────────
          SCANNER MODE
@@ -708,13 +1095,13 @@
             </div>
             <!-- Floating controls over viewfinder -->
             <div class="scan-float-controls">
+              <button class="scan-float-btn tooltip-wrap" onclick="document.getElementById('scan-file').click()">
+                <i class="fa-solid fa-image"></i>
+                <span class="tooltip-pop">Scan from Gallery</span>
+              </button>
               <button class="scan-float-btn tooltip-wrap" id="flashlight-btn" onclick="toggleFlashlight()">
                 <i class="fa-solid fa-bolt"></i>
                 <span class="tooltip-pop">Toggle Flashlight</span>
-              </button>
-              <button class="scan-float-btn tooltip-wrap" onclick="document.getElementById('scan-file').click()">
-                <i class="fa-solid fa-image"></i>
-                <span class="tooltip-pop">Scan from Image</span>
               </button>
             </div>
           </div>
@@ -733,7 +1120,7 @@
         <div class="scan-result-panel" id="scan-result" style="display:none;">
           <div class="scan-result-card">
             <div class="scan-result-header">
-              <i class="fa-solid fa-check-circle scan-success-icon"></i>
+              <i class="fa-solid fa-circle-check scan-success-icon"></i>
               <span>QR Code Detected</span>
             </div>
             <div class="sr-label">Content</div>
@@ -747,7 +1134,7 @@
                 <i class="fa-regular fa-copy"></i> Copy
               </button>
               <button class="btn btn-ghost btn-sm" onclick="loadScannedInGen()">
-                <i class="fa-solid fa-wand-magic-sparkles"></i> Edit
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Edit in Generator
               </button>
               <button class="btn btn-ghost btn-sm" onclick="resetScanner()">
                 <i class="fa-solid fa-rotate-right"></i> Scan Again
@@ -758,48 +1145,113 @@
       </div>
     </div><!-- /mode-scan -->
 
+
     <!-- ─────────────────────────────────────
          BATCH MODE
     ────────────────────────────────────── -->
     <div id="mode-batch" class="mode-view">
       <div class="page-area">
         <div class="page-header">
-          <h2 class="page-title"><i class="fa-solid fa-layer-group" style="color:var(--primary);"></i> Batch Generator</h2>
-          <p class="page-sub">Generate multiple QR codes at once using a saved template style.</p>
+          <h2 class="page-title">
+            <i class="fa-solid fa-layer-group" style="color:var(--primary);"></i> Batch Generator
+          </h2>
+          <p class="page-sub">Generate multiple QR codes at once from a list of URLs or text.</p>
         </div>
 
-        <div class="card">
+        <!-- Input Data -->
+        <div class="card accordion-card">
           <button class="card-header open" onclick="toggleAccordion(this)">
             <i class="fa-solid fa-list-ul ch-icon"></i>
             <span>Input Data</span>
-            <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
-              <span class="tooltip-pop">One URL or text per line. Max 200 items.</span>
+            <i class="fa-solid fa-circle-info info-icon tooltip-wrap" onclick="event.stopPropagation()">
+              <span class="tooltip-pop">One URL or text per line. Maximum 200 items.</span>
             </i>
             <i class="fa-solid fa-chevron-down arrow"></i>
           </button>
           <div class="card-body">
             <p class="field-hint">One URL / text per line. Max 200 items.</p>
             <textarea class="input" id="batch-input" rows="8" style="resize:vertical;"
-                      placeholder="https://example.com&#10;https://github.com&#10;Hello World"></textarea>
-            <div class="field-hint mt-6" id="batch-count-hint">0 items</div>
+                      placeholder="https://example.com&#10;https://github.com&#10;Hello World"
+                      oninput="updateBatchCount()"></textarea>
+            <div class="batch-input-footer">
+              <span class="field-hint" id="batch-count-hint">0 items</span>
+              <div class="batch-input-btns">
+                <button class="btn btn-ghost btn-xs" onclick="clearBatchInput()">Clear</button>
+                <button class="btn btn-ghost btn-xs" onclick="document.getElementById('batch-csv-file').click()">
+                  <i class="fa-solid fa-file-csv"></i> Import CSV
+                </button>
+              </div>
+            </div>
+            <input type="file" id="batch-csv-file" accept=".csv,.txt" style="display:none;" onchange="importBatchCSV(this)">
           </div>
         </div>
 
-        <div class="card mt-10">
+        <!-- Template Style -->
+        <div class="card accordion-card mt-10">
           <button class="card-header open" onclick="toggleAccordion(this)">
             <i class="fa-solid fa-paint-brush ch-icon"></i>
             <span>Template Style</span>
-            <i class="fa-solid fa-circle-info info-icon tooltip-wrap" style="margin-left:4px; font-size:.78rem; color:var(--text3); cursor:default;">
-              <span class="tooltip-pop">Choose a saved template to apply to all QR codes</span>
+            <i class="fa-solid fa-circle-info info-icon tooltip-wrap" onclick="event.stopPropagation()">
+              <span class="tooltip-pop">Choose a template to apply its design style to all generated QR codes</span>
             </i>
             <i class="fa-solid fa-chevron-down arrow"></i>
           </button>
           <div class="card-body">
-            <p class="field-hint mb-10">Select one of your saved templates. <a onclick="switchMode('gen')" class="link">Create templates in Generator →</a></p>
-            <div id="batch-template-list"></div>
+            <p class="field-hint mb-10">
+              Select a template to apply its style.
+              <a onclick="switchMode('gen')" class="link">Create templates in Generator →</a>
+            </p>
+            <!-- App Templates -->
+            <div class="section-label">App Templates</div>
+            <div class="template-scroll-area mb-10">
+              <div class="template-grid" id="batch-app-template-list"></div>
+            </div>
+            <!-- User Templates -->
+            <div class="section-label">My Templates</div>
+            <div class="template-scroll-area">
+              <div id="batch-template-list"></div>
+            </div>
           </div>
         </div>
 
+        <!-- Options -->
+        <div class="card accordion-card mt-10">
+          <button class="card-header" onclick="toggleAccordion(this)">
+            <i class="fa-solid fa-sliders ch-icon"></i>
+            <span>Batch Options</span>
+            <i class="fa-solid fa-chevron-down arrow"></i>
+          </button>
+          <div class="card-body collapsed">
+            <div class="opts-grid">
+              <div class="opts-col">
+                <div class="field-label">Output Size (px)</div>
+                <div class="num-wrap">
+                  <button class="num-btn" onclick="adjBatchSize(-50)">−</button>
+                  <input type="number" class="input num-input" id="batch-size" value="600" min="100" max="2000">
+                  <button class="num-btn" onclick="adjBatchSize(50)">+</button>
+                </div>
+              </div>
+              <div class="opts-col">
+                <div class="field-label">Download Format</div>
+                <select class="select" id="batch-format">
+                  <option value="png">PNG</option>
+                  <option value="svg">SVG</option>
+                  <option value="jpg">JPG</option>
+                  <option value="webp">WebP</option>
+                </select>
+              </div>
+            </div>
+            <div class="toggle-row mt-10">
+              <label>Transparent Background</label>
+              <label class="toggle">
+                <input type="checkbox" id="batch-transparent">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
         <div class="batch-actions">
           <button class="btn btn-primary" onclick="startBatch()">
             <i class="fa-solid fa-rocket"></i> Generate All
@@ -807,24 +1259,42 @@
           <button class="btn btn-outline" id="batch-dl-btn" style="display:none;" onclick="downloadBatch()">
             <i class="fa-solid fa-file-zipper"></i> Download ZIP
           </button>
+          <button class="btn btn-ghost" id="batch-select-all-btn" style="display:none;" onclick="selectAllBatch()">
+            <i class="fa-solid fa-check-square"></i> Select All
+          </button>
           <button class="btn btn-ghost" id="batch-clear-btn" style="display:none;" onclick="clearBatch()">
-            <i class="fa-solid fa-xmark"></i> Clear
+            <i class="fa-solid fa-xmark"></i> Clear Results
           </button>
         </div>
 
+        <!-- Progress -->
         <div class="card" id="batch-progress-card" style="display:none; margin-top:12px;">
           <div class="card-body">
             <div class="batch-prog-row">
               <span id="batch-prog-txt">Generating…</span>
               <span id="batch-prog-num">0 / 0</span>
             </div>
-            <div class="progress-wrap"><div class="progress-fill" id="batch-prog-fill"></div></div>
+            <div class="progress-wrap">
+              <div class="progress-fill" id="batch-prog-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Batch selected action bar -->
+        <div class="batch-multi-bar" id="batch-multi-bar" style="display:none;">
+          <span id="batch-selected-count">0 selected</span>
+          <div class="batch-multi-actions">
+            <button class="btn btn-outline btn-xs" onclick="downloadSelectedBatch()">
+              <i class="fa-solid fa-download"></i> Download
+            </button>
+            <button class="btn btn-ghost btn-xs" onclick="deselectAllBatch()">Cancel</button>
           </div>
         </div>
 
         <div class="batch-preview" id="batch-preview"></div>
       </div>
     </div><!-- /mode-batch -->
+
 
     <!-- ─────────────────────────────────────
          PROJECTS MODE
@@ -842,14 +1312,21 @@
             <button class="btn btn-outline btn-sm" onclick="exportProjects()">
               <i class="fa-solid fa-file-export"></i> Export
             </button>
+            <button class="btn btn-ghost btn-sm" onclick="openModal('import-modal')">
+              <i class="fa-solid fa-file-import"></i> Import
+            </button>
           </div>
         </div>
 
         <div class="multi-select-bar" id="multi-select-bar" style="display:none;">
           <span id="select-count">0 selected</span>
           <div class="ms-actions">
-            <button class="btn btn-outline btn-xs" onclick="downloadSelectedProjects()"><i class="fa-solid fa-download"></i> Download</button>
-            <button class="btn btn-danger btn-xs" onclick="deleteSelectedProjects()"><i class="fa-solid fa-trash"></i> Delete</button>
+            <button class="btn btn-outline btn-xs" onclick="downloadSelectedProjects()">
+              <i class="fa-solid fa-download"></i> Download
+            </button>
+            <button class="btn btn-danger btn-xs" onclick="deleteSelectedProjects()">
+              <i class="fa-solid fa-trash"></i> Delete
+            </button>
             <button class="btn btn-ghost btn-xs" onclick="cancelProjectSelect()">Cancel</button>
           </div>
         </div>
@@ -857,7 +1334,8 @@
         <div class="search-row">
           <div class="search-input-wrap">
             <i class="fa-solid fa-magnifying-glass search-icon"></i>
-            <input class="input search-input" id="project-search" placeholder="Search by name, URL, tag…"
+            <input class="input search-input" id="project-search"
+                   placeholder="Search by name, URL, tag…"
                    oninput="renderProjects(this.value)">
           </div>
         </div>
@@ -881,6 +1359,7 @@
       </div>
     </div><!-- /mode-projects -->
 
+
     <!-- ─────────────────────────────────────
          MY TEMPLATES MODE
     ────────────────────────────────────── -->
@@ -900,77 +1379,125 @@
       </div>
     </div>
 
+
     <!-- ─────────────────────────────────────
          SETTINGS MODE
     ────────────────────────────────────── -->
     <div id="mode-settings" class="mode-view">
       <div class="page-area">
-        <h2 class="page-title"><i class="fa-solid fa-gear" style="color:var(--primary);"></i> Settings</h2>
-        <div id="settings-content"></div>
+        <h2 class="page-title">
+          <i class="fa-solid fa-gear" style="color:var(--primary);"></i> Settings
+        </h2>
+        <div id="settings-content"><!-- Rendered by settings.js --></div>
       </div>
     </div>
+
 
     <!-- ─────────────────────────────────────
          PROFILE MODE
     ────────────────────────────────────── -->
     <div id="mode-profile" class="mode-view">
-      <div class="page-area">
-        <h2 class="page-title"><i class="fa-solid fa-circle-user" style="color:var(--primary);"></i> Profile</h2>
-        <div id="profile-content"></div>
-      </div>
+      <!-- Will be fully rendered by profile logic in app.js/settings.js -->
+      <div id="profile-page-root"><!-- Rendered by JS --></div>
     </div>
+
 
     <!-- ─────────────────────────────────────
          BUG REPORT MODE
     ────────────────────────────────────── -->
     <div id="mode-report" class="mode-view">
       <div class="page-area">
-        <h2 class="page-title"><i class="fa-solid fa-bug" style="color:var(--primary);"></i> Report a Bug</h2>
-        <p class="page-sub">Found an issue? Help us improve QR Prism. We read every submission.</p>
+        <div class="page-header">
+          <h2 class="page-title">
+            <i class="fa-solid fa-bug" style="color:var(--primary);"></i> Report a Bug
+          </h2>
+          <p class="page-sub">Found an issue? Help us improve QR Prism. We read every submission.</p>
+        </div>
 
+        <!-- Report Type -->
         <div class="card">
           <div class="card-body">
             <div class="field-label mb-10">Report Type</div>
             <div class="report-type-grid">
-              <button class="rtype-btn active" data-rtype="bug" onclick="selectReportType(this,'bug')"><i class="fa-solid fa-bug"></i> Bug</button>
-              <button class="rtype-btn" data-rtype="ui" onclick="selectReportType(this,'ui')"><i class="fa-solid fa-palette"></i> UI Issue</button>
-              <button class="rtype-btn" data-rtype="feature" onclick="selectReportType(this,'feature')"><i class="fa-solid fa-lightbulb"></i> Feature Request</button>
+              <button class="rtype-btn active" data-rtype="bug" onclick="selectReportType(this,'bug')">
+                <i class="fa-solid fa-bug"></i> Bug
+              </button>
+              <button class="rtype-btn" data-rtype="ui" onclick="selectReportType(this,'ui')">
+                <i class="fa-solid fa-palette"></i> UI Issue
+              </button>
+              <button class="rtype-btn" data-rtype="feature" onclick="selectReportType(this,'feature')">
+                <i class="fa-solid fa-lightbulb"></i> Feature Request
+              </button>
+              <button class="rtype-btn" data-rtype="performance" onclick="selectReportType(this,'performance')">
+                <i class="fa-solid fa-gauge"></i> Performance
+              </button>
             </div>
           </div>
         </div>
 
+        <!-- Report Form -->
         <div class="card mt-10">
           <div class="card-body report-form" id="report-form">
-            <div class="fg">
-              <label class="field-label">Your Name</label>
-              <input type="text" class="input" id="report-name" placeholder="e.g. Muhtasim Rahman">
+            <div class="two-col">
+              <div class="fg">
+                <label class="field-label">
+                  Your Name <span class="field-required">*</span>
+                </label>
+                <input type="text" class="input" id="report-name" placeholder="e.g. Muhtasim Rahman">
+              </div>
+              <div class="fg">
+                <label class="field-label">
+                  Email <span class="field-required">*</span>
+                </label>
+                <input type="email" class="input" id="report-email" placeholder="you@email.com">
+              </div>
             </div>
             <div class="fg">
-              <label class="field-label">Email <span class="field-optional">(optional)</span></label>
-              <input type="email" class="input" id="report-email" placeholder="you@email.com">
+              <label class="field-label">
+                Title / Summary <span class="field-required">*</span>
+              </label>
+              <input type="text" class="input" id="report-title" placeholder="Brief description of the issue">
             </div>
             <div class="fg">
-              <label class="field-label">Description</label>
-              <textarea class="input" id="report-desc" rows="5" placeholder="What happened? What were you doing? What did you expect?"></textarea>
+              <label class="field-label">
+                Description <span class="field-required">*</span>
+                <span class="field-hint" id="report-desc-hint" style="font-weight:400;">(min 30 characters)</span>
+              </label>
+              <textarea class="input" id="report-desc" rows="6"
+                        placeholder="Describe what happened, what you were doing, and what you expected to happen. The more detail, the better."
+                        oninput="updateReportDescHint(this)"></textarea>
             </div>
             <div class="fg">
-              <label class="field-label">Screenshots <span class="field-optional">(max 8, 5MB each)</span></label>
+              <label class="field-label">
+                Screenshots
+                <span class="field-optional">(max 5 images)</span>
+              </label>
               <div class="report-img-grid" id="report-img-grid">
                 <div class="report-img-add" onclick="document.getElementById('report-img-input').click()">
                   <i class="fa-solid fa-plus"></i>
                   <span>Add image</span>
                 </div>
               </div>
-              <input type="file" id="report-img-input" accept="image/*" multiple style="display:none;" onchange="handleReportImages(this)">
+              <input type="file" id="report-img-input" accept="image/*" multiple style="display:none;"
+                     onchange="handleReportImages(this)">
+              <p class="field-hint mt-6">
+                <i class="fa-solid fa-compress-arrows-alt"></i>
+                Images are automatically compressed before upload.
+              </p>
             </div>
             <div class="btn-group">
-              <button class="btn btn-primary" onclick="submitReport()">
+              <button class="btn btn-primary" onclick="submitReport()" id="report-submit-btn">
                 <i class="fa-solid fa-paper-plane"></i> Submit Report
               </button>
               <button class="btn btn-ghost" onclick="clearReportForm()">
                 <i class="fa-solid fa-rotate-left"></i> Clear
               </button>
             </div>
+            <p class="report-contact-hint">
+              <i class="fa-solid fa-envelope-open-text"></i>
+              For urgent issues, contact directly:
+              <a href="mailto:qrprism@gmail.com" class="link">qrprism@gmail.com</a>
+            </p>
           </div>
         </div>
       </div>
@@ -978,8 +1505,9 @@
 
   </main><!-- /main-content -->
 
+
   <!-- ══════════════════════════════════════════
-       BOTTOM NAV (Mobile < 768px)
+       BOTTOM NAV  (Mobile < 768px)
   ═══════════════════════════════════════════ -->
   <nav class="bottomnav" id="bottomnav">
     <button class="bn-item active" data-mode="gen" onclick="switchMode('gen')">
@@ -1014,14 +1542,15 @@
       <div class="bn-icon-wrap">
         <i class="fa-solid fa-grid-2"></i>
       </div>
-      <span class="bn-label">Menu</span>
+      <span class="bn-label">More</span>
     </button>
   </nav>
 
 </div><!-- /app-shell -->
 
+
 <!-- ══════════════════════════════════════════
-     BOTTOM SHEET MENU
+     BOTTOM SHEET MENU  (Mobile)
 ═══════════════════════════════════════════ -->
 <div class="bs-overlay" id="bs-overlay" onclick="closeBottomSheet()"></div>
 <div class="bottom-sheet" id="bottom-sheet">
@@ -1054,54 +1583,229 @@
     </button>
     <button class="bs-item" onclick="closeBottomSheet(); toggleDark();">
       <div class="bs-icon"><i class="fa-solid fa-moon" id="bs-dark-icon"></i></div>
-      <span>Theme</span>
+      <span id="bs-theme-label">Dark Mode</span>
     </button>
     <button class="bs-item" onclick="closeBottomSheet(); shareApp();">
       <div class="bs-icon"><i class="fa-solid fa-share-nodes"></i></div>
       <span>Share App</span>
     </button>
+    <!-- Auth item in bottom sheet -->
+    <button class="bs-item" id="bs-auth-btn" onclick="closeBottomSheet(); openModal('login-modal');">
+      <div class="bs-icon"><i class="fa-solid fa-right-to-bracket" id="bs-auth-icon"></i></div>
+      <span id="bs-auth-label">Sign In</span>
+    </button>
   </div>
 </div>
+
 
 <!-- ══════════════════════════════════════════
      MODALS
 ═══════════════════════════════════════════ -->
 
-<!-- Save Template -->
+<!-- ── LOGIN MODAL ── -->
+<div class="modal-bg" id="login-modal">
+  <div class="modal modal-auth">
+    <div class="modal-close-btn" onclick="closeModal('login-modal')">
+      <i class="fa-solid fa-xmark"></i>
+    </div>
+    <div class="auth-modal-logo">
+      <img class="brand-logo-icon brand-logo-dark-bg" src="./assets/logo-light.svg" alt="QR Prism" />
+      <img class="brand-logo-icon brand-logo-light-bg" src="./assets/logo-dark.svg" alt="QR Prism" />
+    </div>
+    <h3 class="modal-title" style="text-align:center;">Welcome back</h3>
+    <p class="auth-modal-sub">Sign in to sync your projects and templates across devices.</p>
+
+    <!-- Google Sign In -->
+    <button class="btn btn-google" onclick="signInWithGoogle()">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+      Continue with Google
+    </button>
+
+    <div class="auth-divider"><span>or</span></div>
+
+    <div class="fg">
+      <label class="field-label">Email</label>
+      <input type="email" class="input" id="login-email" placeholder="you@email.com"
+             onkeydown="if(event.key==='Enter') loginWithEmail()">
+    </div>
+    <div class="fg mt-8">
+      <label class="field-label">Password</label>
+      <div class="input-pw-wrap">
+        <input type="password" class="input" id="login-password" placeholder="Your password"
+               onkeydown="if(event.key==='Enter') loginWithEmail()" style="flex:1;">
+        <button class="btn btn-ghost btn-sm" type="button" onclick="togglePw('login-password',this)" tabindex="-1">
+          <i class="fa-solid fa-eye"></i>
+        </button>
+      </div>
+    </div>
+    <div class="auth-forgot">
+      <a onclick="forgotPassword()" class="link">Forgot password?</a>
+    </div>
+    <div id="login-error" class="auth-error" style="display:none;"></div>
+    <button class="btn btn-primary btn-full mt-12" onclick="loginWithEmail()" id="login-submit-btn">
+      <i class="fa-solid fa-right-to-bracket"></i> Sign In
+    </button>
+    <div class="auth-switch">
+      Don't have an account?
+      <a onclick="switchAuthModal('signup')" class="link">Create one →</a>
+    </div>
+  </div>
+</div>
+
+<!-- ── SIGNUP MODAL ── -->
+<div class="modal-bg" id="signup-modal">
+  <div class="modal modal-auth">
+    <div class="modal-close-btn" onclick="closeModal('signup-modal')">
+      <i class="fa-solid fa-xmark"></i>
+    </div>
+    <div class="auth-modal-logo">
+      <img class="brand-logo-icon brand-logo-dark-bg" src="./assets/logo-light.svg" alt="QR Prism" />
+      <img class="brand-logo-icon brand-logo-light-bg" src="./assets/logo-dark.svg" alt="QR Prism" />
+    </div>
+    <h3 class="modal-title" style="text-align:center;">Create account</h3>
+    <p class="auth-modal-sub">Join QR Prism to save and sync your work.</p>
+
+    <button class="btn btn-google" onclick="signInWithGoogle()">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+      Continue with Google
+    </button>
+
+    <div class="auth-divider"><span>or</span></div>
+
+    <div class="fg">
+      <label class="field-label">Display Name</label>
+      <input type="text" class="input" id="signup-name" placeholder="Your name">
+    </div>
+    <div class="fg mt-8">
+      <label class="field-label">Email</label>
+      <input type="email" class="input" id="signup-email" placeholder="you@email.com">
+    </div>
+    <div class="fg mt-8">
+      <label class="field-label">Password <span class="field-hint" style="font-weight:400;">(min 6 characters)</span></label>
+      <div class="input-pw-wrap">
+        <input type="password" class="input" id="signup-password" placeholder="Create a password" style="flex:1;">
+        <button class="btn btn-ghost btn-sm" type="button" onclick="togglePw('signup-password',this)" tabindex="-1">
+          <i class="fa-solid fa-eye"></i>
+        </button>
+      </div>
+    </div>
+    <div id="signup-error" class="auth-error" style="display:none;"></div>
+    <button class="btn btn-primary btn-full mt-12" onclick="signUpWithEmail()" id="signup-submit-btn">
+      <i class="fa-solid fa-user-plus"></i> Create Account
+    </button>
+    <div class="auth-switch">
+      Already have an account?
+      <a onclick="switchAuthModal('login')" class="link">Sign in →</a>
+    </div>
+  </div>
+</div>
+
+<!-- ── PROFILE EDIT MODAL ── -->
+<div class="modal-bg" id="profile-edit-modal">
+  <div class="modal modal-lg">
+    <h3 class="modal-title">
+      <i class="fa-solid fa-pen-to-square" style="color:var(--primary)"></i> Edit Profile
+    </h3>
+    <div class="profile-edit-avatar-row">
+      <div class="profile-edit-avatar-wrap" onclick="document.getElementById('profile-photo-input').click()">
+        <div class="profile-edit-avatar" id="pe-avatar">
+          <i class="fa-solid fa-user"></i>
+        </div>
+        <div class="profile-edit-avatar-overlay">
+          <i class="fa-solid fa-camera"></i>
+        </div>
+      </div>
+      <div class="profile-edit-avatar-hint">
+        <p>Click to change profile photo</p>
+        <p class="field-hint">JPG, PNG (will be compressed automatically)</p>
+      </div>
+    </div>
+    <input type="file" id="profile-photo-input" accept="image/*" style="display:none;" onchange="handleProfilePhotoUpload(this)">
+    <div class="fg mt-12">
+      <label class="field-label">Display Name</label>
+      <input type="text" class="input" id="pe-name" placeholder="Your name">
+    </div>
+    <div class="fg mt-8">
+      <label class="field-label">Bio</label>
+      <textarea class="input" id="pe-bio" rows="3" placeholder="Tell us a little about yourself…" maxlength="160"></textarea>
+      <div class="field-hint text-right" id="pe-bio-count">0/160</div>
+    </div>
+    <div class="fg mt-8">
+      <label class="field-label">Website</label>
+      <input type="url" class="input" id="pe-website" placeholder="https://yourwebsite.com">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('profile-edit-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProfileEdit()" id="pe-save-btn">
+        <i class="fa-solid fa-check"></i> Save Changes
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── BANNER PICKER MODAL ── -->
+<div class="modal-bg" id="banner-picker-modal">
+  <div class="modal modal-lg">
+    <h3 class="modal-title">
+      <i class="fa-solid fa-image" style="color:var(--primary)"></i> Choose Banner
+    </h3>
+    <div class="banner-grid" id="banner-grid">
+      <!-- Rendered by JS from /assets/banners/ -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('banner-picker-modal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SAVE TEMPLATE MODAL ── -->
 <div class="modal-bg" id="save-template-modal">
   <div class="modal">
-    <h3 class="modal-title"><i class="fa-solid fa-bookmark" style="color:var(--primary)"></i> Save as Template</h3>
+    <h3 class="modal-title">
+      <i class="fa-solid fa-bookmark" style="color:var(--primary)"></i> Save as Template
+    </h3>
     <div class="fg">
       <label class="field-label">Template Name</label>
-      <input class="input" id="save-tmpl-name" placeholder="My Awesome Style…">
+      <input class="input" id="save-tmpl-name" placeholder="My Awesome Style…"
+             onkeydown="if(event.key==='Enter') saveTemplate()">
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('save-template-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveTemplate()"><i class="fa-solid fa-bookmark"></i> Save</button>
+      <button class="btn btn-primary" onclick="saveTemplate()">
+        <i class="fa-solid fa-bookmark"></i> Save
+      </button>
     </div>
   </div>
 </div>
 
-<!-- Save Project -->
+<!-- ── SAVE PROJECT MODAL ── -->
 <div class="modal-bg" id="save-project-modal">
   <div class="modal">
-    <h3 class="modal-title"><i class="fa-solid fa-floppy-disk" style="color:var(--primary)"></i> Save Project</h3>
+    <h3 class="modal-title">
+      <i class="fa-solid fa-floppy-disk" style="color:var(--primary)"></i> Save Project
+    </h3>
     <div class="fg">
       <label class="field-label">Project Name</label>
-      <input class="input" id="save-proj-name" placeholder="My QR Code…">
+      <input class="input" id="save-proj-name" placeholder="My QR Code…"
+             onkeydown="if(event.key==='Enter') saveProjectWithName()">
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('save-project-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveProjectWithName()"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+      <button class="btn btn-primary" onclick="saveProjectWithName()">
+        <i class="fa-solid fa-floppy-disk"></i> Save
+      </button>
     </div>
   </div>
 </div>
 
-<!-- Rename Project -->
+<!-- ── RENAME PROJECT MODAL ── -->
 <div class="modal-bg" id="rename-project-modal">
   <div class="modal">
-    <h3 class="modal-title"><i class="fa-solid fa-pencil" style="color:var(--primary)"></i> Rename Project</h3>
-    <input class="input" id="rename-proj-input" placeholder="New name…">
+    <h3 class="modal-title">
+      <i class="fa-solid fa-pencil" style="color:var(--primary)"></i> Rename Project
+    </h3>
+    <input class="input" id="rename-proj-input" placeholder="New name…"
+           onkeydown="if(event.key==='Enter') confirmRenameProject()">
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('rename-project-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="confirmRenameProject()">Rename</button>
@@ -1109,10 +1813,12 @@
   </div>
 </div>
 
-<!-- Add Tag -->
+<!-- ── ADD TAG MODAL ── -->
 <div class="modal-bg" id="add-tag-modal">
   <div class="modal">
-    <h3 class="modal-title"><i class="fa-solid fa-tag" style="color:var(--primary)"></i> Add Tag</h3>
+    <h3 class="modal-title">
+      <i class="fa-solid fa-tag" style="color:var(--primary)"></i> Add Tag
+    </h3>
     <input class="input" id="add-tag-input" placeholder="Tag name…" maxlength="20"
            onkeydown="if(event.key==='Enter') confirmAddTag()">
     <div class="modal-footer">
@@ -1122,18 +1828,62 @@
   </div>
 </div>
 
-<!-- Scan Help -->
+<!-- ── SCAN HELP MODAL (icons, not emojis) ── -->
 <div class="modal-bg" id="help-modal">
   <div class="modal">
-    <h3 class="modal-title"><i class="fa-solid fa-circle-question" style="color:var(--primary)"></i> QR Not Scanning?</h3>
+    <h3 class="modal-title">
+      <i class="fa-solid fa-circle-question" style="color:var(--primary)"></i> QR Not Scanning?
+    </h3>
     <div class="help-tips">
-      <div class="help-tip">🔍 <strong>Low contrast</strong> — Use dark foreground on light background.</div>
-      <div class="help-tip">📐 <strong>Too small</strong> — At least 200px / 2cm when printed.</div>
-      <div class="help-tip">🖼️ <strong>Logo too large</strong> — Keep logo under 30% of QR area.</div>
-      <div class="help-tip">⚙️ <strong>Error correction</strong> — Use H (Best) when adding a logo.</div>
-      <div class="help-tip">🖨️ <strong>Blurry print</strong> — Ensure sharp edges, no pixelation.</div>
-      <div class="help-tip">📷 <strong>Camera distance</strong> — Hold 15–30 cm from the code.</div>
-      <div class="help-tip">📶 <strong>WiFi QR</strong> — Must use correct format: WIFI:T:WPA;S:name;P:pass;;</div>
+      <div class="help-tip">
+        <div class="help-tip-icon"><i class="fa-solid fa-droplet-slash"></i></div>
+        <div>
+          <strong>Low contrast</strong>
+          <p>Use dark foreground on a light background for best results.</p>
+        </div>
+      </div>
+      <div class="help-tip">
+        <div class="help-tip-icon"><i class="fa-solid fa-expand"></i></div>
+        <div>
+          <strong>Too small</strong>
+          <p>Print at least 200px / 2cm. Larger is always safer.</p>
+        </div>
+      </div>
+      <div class="help-tip">
+        <div class="help-tip-icon"><i class="fa-solid fa-image"></i></div>
+        <div>
+          <strong>Logo too large</strong>
+          <p>Keep the logo under 30% of the QR area. Use Error Correction H.</p>
+        </div>
+      </div>
+      <div class="help-tip">
+        <div class="help-tip-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div>
+          <strong>Error correction</strong>
+          <p>Use <strong>H (Best)</strong> when adding logos or decorative patterns.</p>
+        </div>
+      </div>
+      <div class="help-tip">
+        <div class="help-tip-icon"><i class="fa-solid fa-print"></i></div>
+        <div>
+          <strong>Blurry print</strong>
+          <p>Download SVG or PNG 4× for sharp, crisp printing.</p>
+        </div>
+      </div>
+      <div class="help-tip">
+        <div class="help-tip-icon"><i class="fa-solid fa-camera"></i></div>
+        <div>
+          <strong>Camera distance</strong>
+          <p>Hold 15–30 cm from the code, keep steady.</p>
+        </div>
+      </div>
+      <div class="help-tip">
+        <div class="help-tip-icon"><i class="fa-solid fa-wifi"></i></div>
+        <div>
+          <strong>WiFi QR format</strong>
+          <p>Must use correct format: <code>WIFI:T:WPA;S:name;P:pass;;</code></p>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="closeModal('help-modal')">Got it!</button>
@@ -1141,10 +1891,27 @@
   </div>
 </div>
 
-<!-- Keyboard Shortcuts -->
+<!-- ── SCANABILITY MODAL ── -->
+<div class="modal-bg" id="scanability-modal">
+  <div class="modal">
+    <h3 class="modal-title">
+      <i class="fa-solid fa-chart-simple" style="color:var(--primary)"></i> Scanability Score
+    </h3>
+    <div id="scanability-content">
+      <!-- Rendered by JS: score display + level descriptions -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeModal('scanability-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── KEYBOARD SHORTCUTS MODAL ── -->
 <div class="modal-bg" id="kb-modal">
   <div class="modal">
-    <h3 class="modal-title"><i class="fa-solid fa-keyboard" style="color:var(--primary)"></i> Keyboard Shortcuts</h3>
+    <h3 class="modal-title">
+      <i class="fa-solid fa-keyboard" style="color:var(--primary)"></i> Keyboard Shortcuts
+    </h3>
     <div class="kb-list">
       <div class="kb-row"><kbd>Ctrl+D</kbd><span>Download PNG</span></div>
       <div class="kb-row"><kbd>Ctrl+S</kbd><span>Save Template</span></div>
@@ -1152,9 +1919,9 @@
       <div class="kb-row"><kbd>Ctrl+Z</kbd><span>Undo</span></div>
       <div class="kb-row"><kbd>Ctrl+Y</kbd><span>Redo</span></div>
       <div class="kb-row"><kbd>D</kbd><span>Toggle Dark / Light Mode</span></div>
-      <div class="kb-row"><kbd>1</kbd><span>Switch to Generate</span></div>
+      <div class="kb-row"><kbd>1</kbd><span>Switch to Generator</span></div>
       <div class="kb-row"><kbd>2</kbd><span>Switch to Projects</span></div>
-      <div class="kb-row"><kbd>3</kbd><span>Switch to Scan</span></div>
+      <div class="kb-row"><kbd>3</kbd><span>Switch to Scanner</span></div>
       <div class="kb-row"><kbd>4</kbd><span>Switch to Batch</span></div>
       <div class="kb-row"><kbd>5</kbd><span>Switch to Settings</span></div>
       <div class="kb-row"><kbd>?</kbd><span>Show this dialog</span></div>
@@ -1166,66 +1933,32 @@
   </div>
 </div>
 
-<!-- Confirmation Modal (reusable) -->
+<!-- ── CONFIRMATION MODAL (reusable) ── -->
 <div class="modal-bg" id="confirm-modal">
   <div class="modal">
-    <h3 class="modal-title" id="confirm-title"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i> Confirm</h3>
+    <h3 class="modal-title" id="confirm-title">
+      <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i> Confirm
+    </h3>
     <p id="confirm-msg" style="font-size:.84rem; color:var(--text2); margin-bottom:10px;"></p>
     <div class="confirm-list" id="confirm-list" style="display:none; max-height:160px; overflow-y:auto; margin-bottom:10px;"></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('confirm-modal')">Cancel</button>
-      <button class="btn btn-danger" id="confirm-ok-btn"><i class="fa-solid fa-trash"></i> Confirm</button>
+      <button class="btn btn-danger" id="confirm-ok-btn">
+        <i class="fa-solid fa-trash"></i> Confirm
+      </button>
     </div>
   </div>
 </div>
 
-<!-- Documentation Modal -->
-<div class="modal-bg" id="docs-modal">
-  <div class="modal modal-xl">
-    <div class="docs-modal-header">
-      <div class="docs-modal-title-row">
-        <i class="fa-brands fa-github" style="color:var(--primary);"></i>
-        <span>Documentation — QR Prism</span>
-      </div>
-      <div class="docs-modal-actions">
-        <button class="icon-btn tooltip-wrap" id="docs-toc-btn" onclick="toggleDocsTOC()">
-          <i class="fa-solid fa-list-ul"></i>
-          <span class="tooltip-pop">Table of Contents</span>
-        </button>
-        <a class="icon-btn tooltip-wrap" href="https://github.com/muhtasim-rahman/qr-prism" target="_blank" rel="noopener">
-          <i class="fa-brands fa-github"></i>
-          <span class="tooltip-pop">Open on GitHub</span>
-        </a>
-        <button class="icon-btn" onclick="closeModal('docs-modal')">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-    </div>
-    <div class="docs-modal-body">
-      <div class="docs-sidebar" id="docs-toc">
-        <div class="docs-toc-title">Contents</div>
-        <div id="docs-toc-list"></div>
-      </div>
-      <div class="docs-content" id="docs-content">
-        <div class="docs-loading"><div class="spin-ring"></div></div>
-      </div>
-    </div>
-    <!-- Mobile TOC Overlay -->
-    <div class="docs-toc-overlay" id="docs-toc-overlay">
-      <div class="docs-toc-overlay-header">
-        <strong>Table of Contents</strong>
-        <button class="icon-btn" onclick="toggleDocsTOC()"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div id="docs-toc-mobile-list"></div>
-    </div>
-  </div>
-</div>
-
-<!-- Import JSON Modal -->
+<!-- ── IMPORT MODAL ── -->
 <div class="modal-bg" id="import-modal">
   <div class="modal">
-    <h3 class="modal-title"><i class="fa-solid fa-file-import" style="color:var(--primary)"></i> Import Data</h3>
-    <p style="font-size:.82rem; color:var(--text2); margin-bottom:12px;">Import projects or templates from a QR Prism JSON file. Type is auto-detected.</p>
+    <h3 class="modal-title">
+      <i class="fa-solid fa-file-import" style="color:var(--primary)"></i> Import Data
+    </h3>
+    <p style="font-size:.82rem; color:var(--text2); margin-bottom:12px;">
+      Import projects or templates from a QR Prism JSON export file. Type is auto-detected.
+    </p>
     <div class="upload-zone" onclick="document.getElementById('import-file').click()">
       <i class="fa-solid fa-file-code"></i>
       <p>Click to select JSON file</p>
@@ -1238,43 +1971,40 @@
   </div>
 </div>
 
-<!-- About Modal -->
+<!-- ── ABOUT MODAL ── -->
 <div class="modal-bg" id="about-modal">
   <div class="modal">
     <div class="about-header">
       <div class="about-logo">
-        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="52" height="52">
-          <rect x="8" y="8" width="35" height="35" rx="7" stroke="var(--primary)" stroke-width="8"/>
-          <rect x="17" y="17" width="17" height="17" rx="3" fill="var(--primary)"/>
-          <rect x="57" y="8" width="35" height="35" rx="7" stroke="var(--primary)" stroke-width="8"/>
-          <rect x="66" y="17" width="17" height="17" rx="3" fill="var(--primary)"/>
-          <rect x="8" y="57" width="35" height="35" rx="7" stroke="var(--primary)" stroke-width="8"/>
-          <rect x="17" y="66" width="17" height="17" rx="3" fill="var(--primary)"/>
-          <rect x="57" y="57" width="9" height="9" rx="2" fill="#818CF8"/>
-          <rect x="72" y="57" width="9" height="9" rx="2" fill="#C084FC"/>
-          <rect x="57" y="72" width="9" height="9" rx="2" fill="#C084FC"/>
-          <rect x="72" y="72" width="9" height="9" rx="2" fill="#818CF8"/>
-          <rect x="83" y="83" width="9" height="9" rx="2" fill="#818CF8"/>
-        </svg>
+        <img class="brand-logo-icon brand-logo-dark-bg" src="./assets/logo-light.svg" alt="QR Prism" style="width:56px;height:56px;" />
+        <img class="brand-logo-icon brand-logo-light-bg" src="./assets/logo-dark.svg" alt="QR Prism" style="width:56px;height:56px;" />
       </div>
-      <div class="about-name"><span class="logo-qr">QR</span><span class="logo-prism">Prism</span></div>
-      <div class="about-version">v2.7</div>
+      <div class="about-name">
+        <img class="brand-logo brand-logo-dark-bg" src="./assets/logo&name-light.svg" alt="QR Prism" style="height:28px;" />
+        <img class="brand-logo brand-logo-light-bg" src="./assets/logo&name-dark.svg" alt="QR Prism" style="height:28px;" />
+      </div>
+      <div class="about-version">v2.8</div>
     </div>
-    <div class="about-desc">Professional, free QR code generator with custom patterns, gradients, logos, frames and templates. 100% client-side — your data never leaves your device.</div>
+    <div class="about-desc">
+      Professional, free QR code generator with custom patterns, gradients, logos, frames and templates.
+      100% client-side — your data never leaves your device unless you sign in.
+    </div>
     <div class="about-features">
       <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> 16 QR Types</div>
-      <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> 18+ Dot Patterns</div>
+      <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> 25+ Dot Patterns</div>
       <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> Gradient Colors</div>
       <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> Logo Embedding</div>
       <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> 20 Preset Templates</div>
       <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> Batch Generator</div>
       <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> QR Scanner</div>
+      <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> Firebase Sync</div>
       <div class="about-feature"><i class="fa-solid fa-check" style="color:var(--success);"></i> Works Offline (PWA)</div>
     </div>
     <div class="about-stack">
-      <span class="stack-pill">HTML</span>
-      <span class="stack-pill">CSS</span>
-      <span class="stack-pill">JavaScript</span>
+      <span class="stack-pill">HTML5</span>
+      <span class="stack-pill">CSS3</span>
+      <span class="stack-pill">Vanilla JS</span>
+      <span class="stack-pill">Firebase</span>
       <span class="stack-pill">qrcode.js</span>
       <span class="stack-pill">jsQR</span>
       <span class="stack-pill">Pickr</span>
@@ -1292,20 +2022,83 @@
   </div>
 </div>
 
-<!-- Toast container -->
-<div id="toasts"></div>
 
-<!-- PWA Install Scripts -->
+<!-- ── PROFILE PHOTO CROP MODAL ── -->
+<div class="modal-bg" id="crop-modal">
+  <div class="modal modal-lg">
+    <h3 class="modal-title">
+      <i class="fa-solid fa-crop-simple" style="color:var(--primary)"></i> Adjust Profile Photo
+    </h3>
+    <p class="auth-modal-sub" style="margin-top:-6px; margin-bottom:14px;">
+      Drag to reposition · Scroll to zoom · Only the circle area will be saved.
+    </p>
+
+    <!-- Cropper container -->
+    <div class="crop-container" id="crop-container">
+      <img id="crop-image" src="" alt="Crop preview" style="max-width:100%; display:block;">
+    </div>
+
+    <!-- Crop controls -->
+    <div class="crop-controls">
+      <div class="crop-control-btns">
+        <button class="btn btn-ghost btn-sm tooltip-wrap" onclick="cropRotate(-90)">
+          <i class="fa-solid fa-rotate-left"></i>
+          <span class="tooltip-pop">Rotate Left</span>
+        </button>
+        <button class="btn btn-ghost btn-sm tooltip-wrap" onclick="cropRotate(90)">
+          <i class="fa-solid fa-rotate-right"></i>
+          <span class="tooltip-pop">Rotate Right</span>
+        </button>
+        <button class="btn btn-ghost btn-sm tooltip-wrap" onclick="cropFlipX()">
+          <i class="fa-solid fa-left-right"></i>
+          <span class="tooltip-pop">Flip Horizontal</span>
+        </button>
+        <button class="btn btn-ghost btn-sm tooltip-wrap" onclick="cropReset()">
+          <i class="fa-solid fa-arrows-rotate"></i>
+          <span class="tooltip-pop">Reset</span>
+        </button>
+      </div>
+      <div class="crop-zoom-row">
+        <i class="fa-solid fa-magnifying-glass-minus" style="color:var(--text3);font-size:.8rem;"></i>
+        <input type="range" class="range" id="crop-zoom-range" min="0" max="3" step="0.01" value="0"
+               oninput="cropZoomTo(parseFloat(this.value))">
+        <i class="fa-solid fa-magnifying-glass-plus" style="color:var(--text3);font-size:.8rem;"></i>
+      </div>
+    </div>
+
+    <div id="crop-upload-progress" style="display:none;" class="crop-progress-bar">
+      <div class="progress-wrap">
+        <div class="progress-fill" id="crop-progress-fill" style="width:0%;"></div>
+      </div>
+      <span id="crop-progress-txt">Uploading…</span>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeCropModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="applyCrop()" id="crop-apply-btn">
+        <i class="fa-solid fa-check"></i> Crop &amp; Upload
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<div id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+
+<!-- ══════════════════════════════════════════
+     PWA INSTALL SCRIPTS
+═══════════════════════════════════════════ -->
 <script>
   let deferredInstallPrompt = null;
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     deferredInstallPrompt = e;
-    document.dispatchEvent(new Event('pwa-installable'));
+    document.dispatchEvent(new CustomEvent('pwa-installable'));
   });
   window.addEventListener('appinstalled', () => {
     deferredInstallPrompt = null;
-    document.dispatchEvent(new Event('pwa-installed'));
+    document.dispatchEvent(new CustomEvent('pwa-installed'));
   });
   function installPWA() {
     if (deferredInstallPrompt) {
@@ -1314,16 +2107,23 @@
     }
   }
   function isPWAInstalled() {
-    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    return window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
   }
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').catch(() => {});
     });
   }
+  function openDocumentation() {
+    window.open('./docs.html', '_blank', 'noopener');
+  }
 </script>
 
-<!-- App Scripts — order matters -->
+<!-- ══════════════════════════════════════════
+     APP SCRIPTS — ORDER MATTERS
+═══════════════════════════════════════════ -->
+<script src="js/firebase.js"></script>
 <script src="js/logos.js"></script>
 <script src="js/state.js"></script>
 <script src="js/qr-engine.js"></script>

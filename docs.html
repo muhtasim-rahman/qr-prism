@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Documentation — QR Prism v2.8</title>
+  <link rel="icon" href="./icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+  <style>
+    :root {
+      --bg:       #0D0B21;
+      --surface:  #141228;
+      --surface2: #1C1A35;
+      --surface3: #252342;
+      --border:   rgba(129,140,248,.14);
+      --border2:  rgba(255,255,255,.07);
+      --primary:  #818CF8;
+      --primary-dark: #6366F1;
+      --accent:   #C084FC;
+      --text1:    #EDEDFF;
+      --text2:    #9898C0;
+      --text3:    #6A6A96;
+      --success:  #34D399;
+      --warning:  #FBBF24;
+      --danger:   #F87171;
+      --sidebar-w: 280px;
+      --header-h:  56px;
+    }
+    [data-theme="light"] {
+      --bg: #F0EFF9; --surface: #fff; --surface2: #EEEDF8; --surface3: #E3E2F4;
+      --border: rgba(99,102,241,.13); --border2: rgba(0,0,0,.07);
+      --text1: #1A1830; --text2: #4D4B72; --text3: #8080A8;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; font-size: 15px; }
+    body {
+      font-family: 'Outfit', system-ui, sans-serif;
+      background: var(--bg); color: var(--text1);
+      line-height: 1.65;
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 6px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, kbd {
+      font-family: 'Fira Code', monospace;
+      font-size: .85em;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 5px;
+      padding: 2px 6px;
+    }
+    pre {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: 'Fira Code', monospace;
+      font-size: .82rem;
+      line-height: 1.7;
+      margin: 14px 0;
+    }
+    pre code { background: none; border: none; padding: 0; }
+    img { max-width: 100%; display: block; }
+
+    /* ── Header ── */
+    .doc-header {
+      position: sticky; top: 0; z-index: 100;
+      height: var(--header-h);
+      background: rgba(13,11,33,.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 24px; gap: 16px;
+    }
+    .doc-header-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-family: 'Outfit', sans-serif; text-decoration: none;
+    }
+    .doc-header-logo img { height: 26px; }
+    .logo-qr    { font-weight: 900; font-size: 1.1rem; color: #EDEDFF; }
+    .logo-prism { font-weight: 400; font-size: 1.1rem; color: var(--primary); }
+    .doc-header-title {
+      color: var(--text3); font-size: .80rem;
+      padding-left: 16px; border-left: 1px solid var(--border2);
+    }
+    .doc-header-right {
+      margin-left: auto; display: flex; gap: 10px; align-items: center;
+    }
+    .doc-header-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 8px;
+      font-size: .78rem; font-weight: 600; cursor: pointer;
+      border: 1.5px solid var(--border);
+      background: var(--surface2); color: var(--text1);
+      transition: background .14s, color .14s;
+    }
+    .doc-header-btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); text-decoration: none; }
+
+    /* ── Layout ── */
+    .doc-layout {
+      display: flex;
+      max-width: 1200px;
+      margin: 0 auto;
+      min-height: calc(100vh - var(--header-h));
+    }
+
+    /* ── Sidebar TOC ── */
+    .doc-toc {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      flex-shrink: 0;
+      position: sticky;
+      top: var(--header-h);
+      height: calc(100vh - var(--header-h));
+      overflow-y: auto;
+      padding: 24px 16px;
+      border-right: 1px solid var(--border2);
+    }
+    .doc-toc::-webkit-scrollbar { width: 3px; }
+    .toc-title {
+      font-size: .68rem; font-weight: 700; color: var(--text3);
+      text-transform: uppercase; letter-spacing: .10em;
+      margin-bottom: 12px; padding: 0 6px;
+    }
+    .toc-link {
+      display: block; padding: 5px 10px; border-radius: 7px;
+      font-size: .79rem; color: var(--text2);
+      transition: background .12s, color .12s;
+      text-decoration: none;
+    }
+    .toc-link:hover, .toc-link.active {
+      background: var(--surface2); color: var(--primary); text-decoration: none;
+    }
+    .toc-link.toc-sub { padding-left: 20px; font-size: .74rem; }
+
+    /* ── Content ── */
+    .doc-content {
+      flex: 1; min-width: 0;
+      padding: 40px 48px 80px;
+    }
+
+    /* ── Sections ── */
+    .doc-section { margin-bottom: 56px; scroll-margin-top: calc(var(--header-h) + 16px); }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2rem; font-weight: 800; margin-bottom: 8px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    h2 {
+      font-size: 1.30rem; font-weight: 700; margin: 40px 0 12px;
+      color: var(--text1); display: flex; align-items: center; gap: 9px;
+    }
+    h2 i { color: var(--primary); font-size: 1.0rem; }
+    h3 { font-size: 1.0rem; font-weight: 600; margin: 20px 0 8px; color: var(--text1); }
+    h4 { font-size: .90rem; font-weight: 600; margin: 14px 0 6px; color: var(--text2); }
+    p  { color: var(--text2); margin-bottom: 10px; }
+
+    .lead {
+      font-size: 1.0rem; color: var(--text2); line-height: 1.7;
+      margin-bottom: 28px;
+    }
+
+    /* ── Badges ── */
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .badge {
+      padding: 4px 12px; border-radius: 20px; font-size: .72rem; font-weight: 700;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .badge-violet { background: rgba(129,140,248,.18); color: var(--primary); }
+    .badge-green  { background: rgba(52,211,153,.15);  color: var(--success); }
+    .badge-yellow { background: rgba(251,191,36,.15);  color: var(--warning); }
+
+    /* ── Feature grid ── */
+    .feat-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px; margin: 16px 0;
+    }
+    .feat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .feat-card i { color: var(--primary); margin-bottom: 8px; font-size: 1.1rem; display: block; }
+    .feat-card strong { font-size: .86rem; color: var(--text1); display: block; margin-bottom: 4px; }
+    .feat-card p { font-size: .76rem; color: var(--text3); margin: 0; }
+
+    /* ── Step list ── */
+    .step-list { display: flex; flex-direction: column; gap: 14px; margin: 14px 0; }
+    .step {
+      display: flex; gap: 14px; align-items: flex-start;
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 12px; padding: 14px 16px;
+    }
+    .step-num {
+      width: 28px; height: 28px; flex-shrink: 0;
+      background: var(--primary); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .78rem; font-weight: 800; color: #fff;
+    }
+    .step-body strong { font-size: .88rem; color: var(--text1); display: block; margin-bottom: 3px; }
+    .step-body p { font-size: .78rem; color: var(--text2); margin: 0; }
+
+    /* ── Table ── */
+    .doc-table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border2); margin: 14px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      background: var(--surface2); padding: 10px 14px;
+      font-size: .76rem; font-weight: 700; color: var(--text2);
+      text-align: left; white-space: nowrap;
+    }
+    td {
+      padding: 9px 14px; font-size: .80rem; color: var(--text1);
+      border-top: 1px solid var(--border2);
+    }
+    tr:hover td { background: var(--surface2); }
+
+    /* ── Alert ── */
+    .alert {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px 16px; border-radius: 10px; margin: 14px 0;
+      font-size: .82rem; line-height: 1.5;
+    }
+    .alert-info    { background: rgba(96,165,250,.10); border: 1px solid rgba(96,165,250,.25); color: #93C5FD; }
+    .alert-warning { background: rgba(251,191,36,.10); border: 1px solid rgba(251,191,36,.25); color: var(--warning); }
+    .alert-tip     { background: rgba(52,211,153,.10); border: 1px solid rgba(52,211,153,.25); color: var(--success); }
+    .alert i { flex-shrink: 0; margin-top: 2px; }
+
+    /* ── QR Types table ── */
+    .type-badge {
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-radius: 6px; padding: 2px 8px; font-size: .70rem;
+      font-family: 'Fira Code', monospace; color: var(--primary);
+    }
+
+    /* ── Footer ── */
+    .doc-footer {
+      border-top: 1px solid var(--border2);
+      padding: 24px 48px;
+      text-align: center;
+      font-size: .78rem; color: var(--text3);
+    }
+    .doc-footer a { color: var(--primary); }
+
+    /* ── Back to app button ── */
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      margin-top: 8px; margin-bottom: 32px;
+      padding: 8px 16px; border-radius: 10px;
+      background: var(--surface2); border: 1px solid var(--border2);
+      font-size: .80rem; font-weight: 600; color: var(--text1);
+      text-decoration: none; transition: background .12s;
+    }
+    .back-btn:hover { background: var(--surface3); text-decoration: none; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .doc-toc { display: none; }
+      .doc-content { padding: 24px 20px 60px; }
+      h1 { font-size: 1.6rem; }
+    }
+    @media (max-width: 600px) {
+      .doc-content { padding: 18px 14px 60px; }
+      .feat-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="doc-header">
+  <a class="doc-header-logo" href="./index.html">
+    <img src="./assets/logo&name-light.svg" alt="QR Prism" />
+  </a>
+  <span class="doc-header-title">Documentation</span>
+  <div class="doc-header-right">
+    <a class="doc-header-btn" href="https://github.com/muhtasim-rahman/qr-prism" target="_blank" rel="noopener">
+      <i class="fa-brands fa-github"></i> GitHub
+    </a>
+    <a class="doc-header-btn" href="./index.html">
+      <i class="fa-solid fa-arrow-left"></i> Back to App
+    </a>
+  </div>
+</header>
+
+<div class="doc-layout">
+
+  <!-- Sidebar TOC -->
+  <aside class="doc-toc" id="doc-toc">
+    <div class="toc-title">Contents</div>
+    <a class="toc-link" href="#overview">Overview</a>
+    <a class="toc-link" href="#getting-started">Getting Started</a>
+    <a class="toc-link" href="#qr-types">QR Types</a>
+    <a class="toc-link toc-sub" href="#type-url">URL / Website</a>
+    <a class="toc-link toc-sub" href="#type-social">Social Media</a>
+    <a class="toc-link toc-sub" href="#type-wifi">WiFi</a>
+    <a class="toc-link toc-sub" href="#type-vcard">vCard Contact</a>
+    <a class="toc-link toc-sub" href="#type-other">Other Types</a>
+    <a class="toc-link" href="#design">Design Options</a>
+    <a class="toc-link toc-sub" href="#colors">Colors &amp; Gradients</a>
+    <a class="toc-link toc-sub" href="#patterns">Patterns &amp; Eyes</a>
+    <a class="toc-link toc-sub" href="#logo">Logo Embedding</a>
+    <a class="toc-link toc-sub" href="#frames">Frames</a>
+    <a class="toc-link toc-sub" href="#advanced">Advanced</a>
+    <a class="toc-link" href="#templates">Templates</a>
+    <a class="toc-link" href="#projects">Projects</a>
+    <a class="toc-link" href="#batch">Batch Generator</a>
+    <a class="toc-link" href="#scanner">QR Scanner</a>
+    <a class="toc-link" href="#download">Downloading</a>
+    <a class="toc-link" href="#account">Account &amp; Sync</a>
+    <a class="toc-link" href="#pwa">PWA / Offline</a>
+    <a class="toc-link" href="#shortcuts">Keyboard Shortcuts</a>
+    <a class="toc-link" href="#tips">Scanability Tips</a>
+    <a class="toc-link" href="#faq">FAQ</a>
+    <a class="toc-link" href="#credits">Credits</a>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="doc-content">
+    <a class="back-btn" href="./index.html"><i class="fa-solid fa-arrow-left"></i> Back to App</a>
+
+    <!-- Overview -->
+    <section class="doc-section" id="overview">
+      <h1>QR Prism Documentation</h1>
+      <div class="badges">
+        <span class="badge badge-violet"><i class="fa-solid fa-tag"></i> v2.8</span>
+        <span class="badge badge-green"><i class="fa-solid fa-wifi"></i> PWA / Offline</span>
+        <span class="badge badge-yellow"><i class="fa-brands fa-js"></i> Vanilla JS</span>
+      </div>
+      <p class="lead">
+        QR Prism is a professional, free QR code generator built with pure HTML, CSS and JavaScript.
+        No frameworks, no build step, no backend. All processing happens on your device.
+      </p>
+
+      <div class="feat-grid">
+        <div class="feat-card">
+          <i class="fa-solid fa-qrcode"></i>
+          <strong>16 QR Types</strong>
+          <p>URL, WiFi, vCard, WhatsApp, Email, Bitcoin and more</p>
+        </div>
+        <div class="feat-card">
+          <i class="fa-solid fa-grip"></i>
+          <strong>22 Dot Patterns</strong>
+          <p>Square, circle, diamond, heart, crystal and more</p>
+        </div>
+        <div class="feat-card">
+          <i class="fa-solid fa-palette"></i>
+          <strong>Full Color Control</strong>
+          <p>Solid, gradient, transparent background &amp; eye colors</p>
+        </div>
+        <div class="feat-card">
+          <i class="fa-solid fa-image"></i>
+          <strong>Logo Embedding</strong>
+          <p>Upload custom logos or pick from 20 brand presets</p>
+        </div>
+        <div class="feat-card">
+          <i class="fa-regular fa-square"></i>
+          <strong>12 Frame Styles</strong>
+          <p>Borders, brackets, labels, polaroid and more</p>
+        </div>
+        <div class="feat-card">
+          <i class="fa-solid fa-layer-group"></i>
+          <strong>Batch Generator</strong>
+          <p>Generate hundreds of QR codes at once, download as ZIP</p>
+        </div>
+        <div class="feat-card">
+          <i class="fa-solid fa-camera-viewfinder"></i>
+          <strong>QR Scanner</strong>
+          <p>Scan QR codes from camera or image files</p>
+        </div>
+        <div class="feat-card">
+          <i class="fa-brands fa-firebase"></i>
+          <strong>Cloud Sync</strong>
+          <p>Sign in to sync projects &amp; templates across devices</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Getting Started -->
+    <section class="doc-section" id="getting-started">
+      <h2><i class="fa-solid fa-rocket"></i> Getting Started</h2>
+      <div class="step-list">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <strong>Select a QR Type</strong>
+            <p>Use the type tabs at the top of the editor (URL, WiFi, vCard, WhatsApp, etc.)</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <strong>Enter your content</strong>
+            <p>Fill in the form fields. The QR code renders automatically as you type.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <strong>Customize the design</strong>
+            <p>Open Colors, Patterns, Logo, or Frame accordion sections to style your QR.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <strong>Download</strong>
+            <p>Click <strong>Download PNG</strong> or open the dropdown for PNG 2×, 4×, SVG, JPG, WebP or PDF.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <strong>Save your work</strong>
+            <p>Click <strong>Save Project</strong> to keep it, or <strong>Template</strong> to reuse the design later.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- QR Types -->
+    <section class="doc-section" id="qr-types">
+      <h2><i class="fa-solid fa-list"></i> QR Types</h2>
+      <p>QR Prism supports 16 data types. Each type has a purpose-built form.</p>
+
+      <h3 id="type-url">URL / Website</h3>
+      <p>Enter any web address. If you omit <code>https://</code> it is added automatically.</p>
+      <pre><code>https://example.com</code></pre>
+
+      <h3 id="type-social">Social Media</h3>
+      <p>Instagram, Facebook, X/Twitter, YouTube, WhatsApp, Telegram — just enter your username and the correct URL is built for you automatically. The matching brand logo is also applied to the QR center.</p>
+
+      <h3 id="type-wifi">WiFi</h3>
+      <p>Generates a WiFi QR that phones can scan to join a network instantly.</p>
+      <pre><code>WIFI:T:WPA;S:NetworkName;P:Password;H:false;;</code></pre>
+      <div class="alert alert-tip">
+        <i class="fa-solid fa-lightbulb"></i>
+        <span>Use <strong>Error Correction H</strong> when adding logos. Scanning a WiFi QR requires the app to support it — iOS Camera and most Android QR apps do.</span>
+      </div>
+
+      <h3 id="type-vcard">vCard Contact</h3>
+      <p>Creates a scannable digital business card (vCard 3.0). Fields: Name, Phone, Email, Company, Title, Website, Address.</p>
+
+      <h3 id="type-other">Other Types</h3>
+      <div class="doc-table-wrap">
+        <table>
+          <thead><tr><th>Type</th><th>Format</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td><span class="type-badge">email</span></td><td>mailto URI</td><td><code>mailto:you@example.com?subject=Hi</code></td></tr>
+            <tr><td><span class="type-badge">phone</span></td><td>tel URI</td><td><code>tel:+8801234567890</code></td></tr>
+            <tr><td><span class="type-badge">sms</span></td><td>SMSTO</td><td><code>SMSTO:+880123:Hello!</code></td></tr>
+            <tr><td><span class="type-badge">location</span></td><td>geo URI</td><td><code>geo:23.8103,90.4125</code></td></tr>
+            <tr><td><span class="type-badge">bitcoin</span></td><td>Crypto URI</td><td><code>bitcoin:1A1zP...?amount=0.001</code></td></tr>
+            <tr><td><span class="type-badge">event</span></td><td>VEVENT (iCal)</td><td>Calendar event data</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Design -->
+    <section class="doc-section" id="design">
+      <h2><i class="fa-solid fa-palette"></i> Design Options</h2>
+
+      <h3 id="colors">Colors &amp; Gradients</h3>
+      <p>The <strong>Colors</strong> accordion has three tabs:</p>
+      <ul style="margin: 8px 0 12px 20px; color: var(--text2); font-size: .88rem; line-height: 2;">
+        <li><strong>Background</strong> — Solid color, linear/radial gradient, or fully transparent</li>
+        <li><strong>Foreground</strong> — Module color with optional gradient overlay</li>
+        <li><strong>Eye Colors</strong> — Custom colors for the 3 finder squares (frame + inner dot), with per-eye gradient support</li>
+      </ul>
+      <div class="alert alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>When <strong>Eye Colors</strong> is enabled, the gap between the eye frame and inner dot becomes transparent — giving a premium floating effect.</span>
+      </div>
+
+      <h3 id="patterns">Patterns &amp; Eyes</h3>
+      <p>Three sub-tabs: <strong>Dot Design</strong> (22 patterns), <strong>Eye Frame</strong> (14 shapes), <strong>Eye Inner</strong> (14 shapes).</p>
+      <p>Additional sliders: <strong>Module Gap</strong> adds breathing room between modules (0–20%), and <strong>Eye Scale</strong> adjusts the size of the finder squares (70–130%).</p>
+
+      <h3 id="logo">Logo Embedding</h3>
+      <p>Upload a custom logo (JPG/PNG/SVG, max 5 MB) or pick from 20 brand presets including WhatsApp, Instagram, GitHub, Bitcoin and more.</p>
+      <div class="alert alert-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>Always use <strong>Error Correction H</strong> when embedding a logo. Keep logo size under 30% of QR area for reliable scanning.</span>
+      </div>
+
+      <h3 id="frames">Frames</h3>
+      <p>Choose from 12 frame styles — with or without a label. Frames with labels include Bottom Bar, Top Bar, Rounded Box, Badge, and Polaroid. Frameless options include Thin Border, Corner Brackets, Circle, and Hexagon.</p>
+      <p>The <strong>Frame Padding</strong> slider controls spacing between the QR code and the frame border.</p>
+
+      <h3 id="advanced">Advanced</h3>
+      <p>Rotation (0°/90°/180°/270°), flip horizontal/vertical, CSS filters (grayscale, sepia, hue-shift), color inversion, and shadow with blur/offset controls.</p>
+      <p>The <strong>QR Analytics</strong> panel shows character count, QR version, module grid, and a <strong>Scanability Score</strong> (0–100) with level breakdown.</p>
+    </section>
+
+    <!-- Templates -->
+    <section class="doc-section" id="templates">
+      <h2><i class="fa-solid fa-bookmark"></i> Templates</h2>
+      <p>Templates save your full design settings (colors, pattern, eye shapes, frame, logo options) so you can reapply them instantly.</p>
+      <div class="step-list">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body"><strong>Design your QR</strong><p>Set up all colors, patterns, frame etc. as desired.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body"><strong>Save as Template</strong><p>Click the <strong>Template</strong> button or press <kbd>Ctrl+S</kbd>, enter a name and save.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body"><strong>Reapply anytime</strong><p>Open the <strong>Templates</strong> accordion and click any saved template to apply it instantly.</p></div>
+        </div>
+      </div>
+      <p>QR Prism also ships with <strong>20 curated preset templates</strong> covering dark themes, gradients, social media styles, and more.</p>
+    </section>
+
+    <!-- Projects -->
+    <section class="doc-section" id="projects">
+      <h2><i class="fa-solid fa-folder-open"></i> Projects</h2>
+      <p>Projects store the full state of a QR code: its data, type, design settings, and a PNG thumbnail.</p>
+      <p><strong>Auto-save</strong> runs 1 second after you stop editing (if enabled in Settings). Manual saving via <strong>Save Project</strong> lets you name it. Projects are listed in three tabs: <em>Saved</em>, <em>Auto-saved</em>, and <em>Pinned</em>.</p>
+      <p>Each project card has actions: <strong>Load in Editor</strong>, <strong>Pin</strong>, <strong>Rename</strong>, <strong>Download PNG</strong>, and <strong>Delete</strong>. You can also search by name, data content, or tag, and multi-select for bulk delete or download.</p>
+      <p>Projects can be exported to JSON and re-imported on any device. If signed in, they sync to your Firebase account.</p>
+    </section>
+
+    <!-- Batch Generator -->
+    <section class="doc-section" id="batch">
+      <h2><i class="fa-solid fa-layer-group"></i> Batch Generator</h2>
+      <p>Generate up to 200 QR codes at once from a list of URLs or text values.</p>
+      <div class="step-list">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body"><strong>Add items</strong><p>Type or paste one URL/text per line, or import a CSV file.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body"><strong>Pick a template</strong><p>Select a preset or saved template to apply its visual style to all QR codes.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body"><strong>Set options</strong><p>Choose output size, format (PNG/JPG/WebP), and whether to use a transparent background.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body"><strong>Generate &amp; Download</strong><p>Click <strong>Generate All</strong>, then <strong>Download ZIP</strong> to get all files at once. You can also download or copy individual items.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Scanner -->
+    <section class="doc-section" id="scanner">
+      <h2><i class="fa-solid fa-camera-viewfinder"></i> QR Scanner</h2>
+      <p>Scan QR codes using your device camera or from an image file.</p>
+      <ul style="margin: 8px 0 14px 20px; color: var(--text2); font-size: .88rem; line-height: 2.2;">
+        <li>Tap <strong>Start Scanner</strong> and allow camera permission</li>
+        <li>Point at a QR code — it detects automatically</li>
+        <li>Or tap the <strong>Gallery</strong> icon to scan from an image file</li>
+        <li>Use the <strong>Flashlight</strong> button in low-light conditions</li>
+        <li>After scanning: <strong>Open</strong> URL, <strong>Copy</strong>, <strong>Edit in Generator</strong>, or <strong>Scan Again</strong></li>
+      </ul>
+    </section>
+
+    <!-- Download -->
+    <section class="doc-section" id="download">
+      <h2><i class="fa-solid fa-download"></i> Downloading</h2>
+      <div class="doc-table-wrap">
+        <table>
+          <thead><tr><th>Format</th><th>Best For</th><th>Transparency</th></tr></thead>
+          <tbody>
+            <tr><td><strong>PNG</strong></td><td>Web, general use</td><td>✓ (toggle in dropdown)</td></tr>
+            <tr><td><strong>PNG 2× / 4×</strong></td><td>High-resolution print</td><td>✓</td></tr>
+            <tr><td><strong>SVG</strong></td><td>Vector / infinite scale</td><td>✓</td></tr>
+            <tr><td><strong>WebP</strong></td><td>Web (small file size)</td><td>✓</td></tr>
+            <tr><td><strong>JPG</strong></td><td>Photos, documents</td><td>✗ (white BG)</td></tr>
+            <tr><td><strong>PDF</strong></td><td>Print documents</td><td>✗</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="alert alert-tip">
+        <i class="fa-solid fa-lightbulb"></i>
+        <span>Enable <strong>Transparent BG</strong> in the download dropdown to export QR codes without a background — useful for placing on colored surfaces.</span>
+      </div>
+    </section>
+
+    <!-- Account & Sync -->
+    <section class="doc-section" id="account">
+      <h2><i class="fa-solid fa-user-circle"></i> Account &amp; Cloud Sync</h2>
+      <p>Sign in with email/password or Google to unlock cloud sync. Your projects, templates, and settings are stored in Firebase Realtime Database and sync across all your devices.</p>
+      <p>Signed-out users can still use all features — data is stored locally in <code>localStorage</code>. Signing in merges local data with the cloud.</p>
+      <p>Bug report images are uploaded to <strong>ImgBB</strong> (our image host), and only the URLs are stored in Firebase — no binary data in the database.</p>
+    </section>
+
+    <!-- PWA -->
+    <section class="doc-section" id="pwa">
+      <h2><i class="fa-solid fa-mobile-screen"></i> PWA / Offline Support</h2>
+      <p>QR Prism is a Progressive Web App. Install it from the browser for:</p>
+      <ul style="margin: 8px 0 14px 20px; color: var(--text2); font-size: .88rem; line-height: 2.2;">
+        <li><strong>Offline access</strong> — works without internet after first load</li>
+        <li><strong>App-like experience</strong> — no browser chrome, full-screen</li>
+        <li><strong>Home screen shortcut</strong> — launch like a native app</li>
+        <li><strong>Faster load times</strong> — assets served from cache</li>
+      </ul>
+      <p>To install: look for the <strong>Install</strong> banner in Settings, or use your browser's "Add to Home Screen" / "Install App" option.</p>
+    </section>
+
+    <!-- Shortcuts -->
+    <section class="doc-section" id="shortcuts">
+      <h2><i class="fa-solid fa-keyboard"></i> Keyboard Shortcuts</h2>
+      <div class="doc-table-wrap">
+        <table>
+          <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td><kbd>Ctrl+D</kbd></td><td>Download PNG</td></tr>
+            <tr><td><kbd>Ctrl+S</kbd></td><td>Save as Template</td></tr>
+            <tr><td><kbd>Ctrl+C</kbd></td><td>Copy QR to Clipboard</td></tr>
+            <tr><td><kbd>Ctrl+Z</kbd></td><td>Undo</td></tr>
+            <tr><td><kbd>Ctrl+Y</kbd></td><td>Redo</td></tr>
+            <tr><td><kbd>D</kbd></td><td>Toggle Dark / Light mode</td></tr>
+            <tr><td><kbd>1</kbd></td><td>Go to Generator</td></tr>
+            <tr><td><kbd>2</kbd></td><td>Go to Projects</td></tr>
+            <tr><td><kbd>3</kbd></td><td>Go to Scanner</td></tr>
+            <tr><td><kbd>4</kbd></td><td>Go to Batch Generator</td></tr>
+            <tr><td><kbd>5</kbd></td><td>Go to Settings</td></tr>
+            <tr><td><kbd>?</kbd></td><td>Show keyboard shortcuts</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>Close modal / bottom sheet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Tips -->
+    <section class="doc-section" id="tips">
+      <h2><i class="fa-solid fa-lightbulb"></i> Scanability Tips</h2>
+      <div class="step-list">
+        <div class="step">
+          <div class="step-num"><i class="fa-solid fa-droplet-slash" style="font-size:.72rem;"></i></div>
+          <div class="step-body"><strong>High contrast</strong><p>Dark modules on a light background scan most reliably. Avoid light-on-light or very similar colors.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num"><i class="fa-solid fa-expand" style="font-size:.72rem;"></i></div>
+          <div class="step-body"><strong>Minimum size</strong><p>Print at least 2 cm × 2 cm (200px at 96 dpi). Larger is always better.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num"><i class="fa-solid fa-shield-halved" style="font-size:.72rem;"></i></div>
+          <div class="step-body"><strong>Error Correction H</strong><p>Always use H when adding logos or heavy patterns. It allows up to 30% of the QR to be obscured and still scan.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num"><i class="fa-solid fa-image" style="font-size:.72rem;"></i></div>
+          <div class="step-body"><strong>Logo under 30%</strong><p>Keep logo size at 25% or less of the QR area. Larger logos reduce scanability significantly.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num"><i class="fa-solid fa-border-all" style="font-size:.72rem;"></i></div>
+          <div class="step-body"><strong>Quiet zone</strong><p>Keep the quiet zone (white margin) at 4 modules or more. This helps scanners locate the QR boundary.</p></div>
+        </div>
+        <div class="step">
+          <div class="step-num"><i class="fa-solid fa-print" style="font-size:.72rem;"></i></div>
+          <div class="step-body"><strong>Sharp output</strong><p>Use PNG 4× or SVG for printing to ensure pixel-perfect, crisp edges.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="doc-section" id="faq">
+      <h2><i class="fa-solid fa-circle-question"></i> FAQ</h2>
+
+      <h3>Is my data sent to any server?</h3>
+      <p>No. All QR generation happens locally in your browser. If you're signed in, your projects and templates sync to Firebase. Bug report images go to ImgBB. Nothing else leaves your device.</p>
+
+      <h3>Why isn't my QR code scanning?</h3>
+      <p>See the <a href="#tips">Scanability Tips</a> section above. Common causes: low contrast, logo too large, output too small, or low error correction level.</p>
+
+      <h3>Can I use QR Prism offline?</h3>
+      <p>Yes — after your first visit, the app is cached by the Service Worker and works fully offline. Install it as a PWA for the best offline experience.</p>
+
+      <h3>What formats can I download?</h3>
+      <p>PNG, PNG 2×, PNG 4×, SVG, WebP, JPG, and PDF. Enable <strong>Transparent BG</strong> in the dropdown for transparent exports.</p>
+
+      <h3>How do I report a bug?</h3>
+      <p>Use the <strong>Report Bug</strong> section in the app, or email <a href="mailto:qrprism@gmail.com">qrprism@gmail.com</a>.</p>
+
+      <h3>Is QR Prism open source?</h3>
+      <p>Yes! The source code is available on <a href="https://github.com/muhtasim-rahman/qr-prism" target="_blank" rel="noopener">GitHub</a> under the MIT License.</p>
+    </section>
+
+    <!-- Credits -->
+    <section class="doc-section" id="credits">
+      <h2><i class="fa-solid fa-heart"></i> Credits</h2>
+      <div class="doc-table-wrap">
+        <table>
+          <thead><tr><th>Library</th><th>Purpose</th><th>License</th></tr></thead>
+          <tbody>
+            <tr><td><a href="https://github.com/davidshimjs/qrcodejs" target="_blank">qrcode.js</a></td><td>QR matrix generation</td><td>MIT</td></tr>
+            <tr><td><a href="https://github.com/cozmo/jsQR" target="_blank">jsQR</a></td><td>QR scanning from camera/image</td><td>Apache 2.0</td></tr>
+            <tr><td><a href="https://github.com/Stuk/jszip" target="_blank">JSZip</a></td><td>ZIP file creation for batch download</td><td>MIT / GPL</td></tr>
+            <tr><td><a href="https://github.com/Simonwep/pickr" target="_blank">Pickr</a></td><td>Color picker (nano theme)</td><td>MIT</td></tr>
+            <tr><td><a href="https://fengyuanchen.github.io/cropperjs/" target="_blank">Cropper.js</a></td><td>Profile photo 1:1 crop</td><td>MIT</td></tr>
+            <tr><td><a href="https://fontawesome.com" target="_blank">Font Awesome 6</a></td><td>Icons</td><td>Free tier</td></tr>
+            <tr><td><a href="https://fonts.google.com" target="_blank">Google Fonts</a></td><td>Outfit, Poppins, DM Sans, Space Grotesk, Fira Code</td><td>OFL</td></tr>
+            <tr><td><a href="https://firebase.google.com" target="_blank">Firebase</a></td><td>Auth &amp; Realtime Database</td><td>Proprietary (Free tier)</td></tr>
+            <tr><td><a href="https://imgbb.com" target="_blank">ImgBB</a></td><td>Image hosting for reports &amp; profiles</td><td>Free API</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top: 20px;">
+        Built with <i class="fa-solid fa-heart" style="color:#ef4444;"></i> by
+        <a href="https://mdturzo.odoo.com" target="_blank" rel="noopener"><strong>Muhtasim Rahman (Turzo)</strong></a>
+        · Bangladesh
+        · <a href="https://github.com/muhtasim-rahman/qr-prism" target="_blank" rel="noopener">GitHub</a>
+        · <a href="mailto:qrprism@gmail.com">qrprism@gmail.com</a>
+      </p>
+    </section>
+
+  </main>
+</div>
+
+<!-- Footer -->
+<footer class="doc-footer">
+  <p>
+    QR Prism v2.8 · MIT License ·
+    <a href="https://github.com/muhtasim-rahman/qr-prism" target="_blank" rel="noopener">GitHub</a> ·
+    Made by <a href="https://mdturzo.odoo.com" target="_blank" rel="noopener">Muhtasim Rahman (Turzo)</a>
+  </p>
+</footer>
+
+<!-- Sidebar active link on scroll -->
+<script>
+  const tocLinks = document.querySelectorAll('.toc-link');
+  const sections = document.querySelectorAll('.doc-section');
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        tocLinks.forEach(l => l.classList.remove('active'));
+        const link = document.querySelector(`.toc-link[href="#${e.target.id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>

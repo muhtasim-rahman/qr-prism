@@ -1,229 +1,184 @@
-<div align="center">
+# QR Prism v2.8
 
-# QR Prism
+**Professional, free QR code generator** — 16 types, 22 dot patterns, gradients, logos, frames, Firebase sync, PWA.
 
-**Advanced QR Code Generator — Beautiful, Free & Fully Offline**
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-818CF8.svg)](LICENSE)
-[![PWA](https://img.shields.io/badge/PWA-Offline%20Ready-34D399.svg)](#)
-[![No Framework](https://img.shields.io/badge/Stack-Vanilla%20JS-F7931A.svg)](#)
-[![Version](https://img.shields.io/badge/Version-2.7-C084FC.svg)](#)
-
-[🌐 Live Demo](https://muhtasim-rahman.github.io/qr-prism/) · [🐛 Report Bug](https://github.com/muhtasim-rahman/qr-prism/issues) · [✨ Request Feature](https://github.com/muhtasim-rahman/qr-prism/issues)
-
-</div>
+[![Live Demo](https://img.shields.io/badge/Live-Demo-818CF8?style=flat-square&logo=github)](https://muhtasim-rahman.github.io/qr-prism/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-2.8-blue?style=flat-square)](#)
+[![PWA](https://img.shields.io/badge/PWA-Offline%20Ready-success?style=flat-square)](#)
 
 ---
 
-## About
+## ✨ Features
 
-QR Prism is a fully featured, client-side QR code generator built with pure HTML, CSS, and JavaScript — no frameworks, no backend, no tracking, 100% free. Everything runs directly in your browser and works completely offline as a Progressive Web App (PWA).
-
-It was designed by Muhtasim Rahman (Turzo) as an open-source project for anyone who wants beautiful, customizable QR codes without limitations.
-
----
-
-## Features
-
-### 16 QR Types
-URL, Text, Email, Phone, SMS, WiFi, vCard, WhatsApp, Telegram, Location, Instagram, Facebook, YouTube, Twitter/X, Crypto, Calendar Event
-
-### Design System
-- **20+ Dot Patterns** — Square, Rounded, Circle, Dot, Diamond, Squircle, Hexagon, Star, Cross, Leaf, Bars, Arrow, Heart, Clover, Sharp, Ring, Crystal, and more
-- **12 Eye Frame Shapes** — Square, Round, Circle, Dot Border, Thick, Double, Cut Corner, Leaf, Sharp-In, Bracket, Hex, Diamond
-- **12 Eye Inner Shapes** — Square, Rounded, Circle, Dot, Diamond, Star, Cross, Ring, Squircle, Leaf, Sharp, Triangle
-- **10 QR Frames** — Bottom Bar, Top Bar, Polaroid, Badge, Ribbon, Square Border, Round Border, Corner Marks, Double Border, None
-
-### Color & Style
-- Full foreground/background color control
-- Linear and radial gradients with angle control
-- Independent marker, eye frame, and eye inner colors
-- Transparent background support
-
-### Logo Embedding
-- Upload your own logo (JPG, PNG, SVG)
-- 20+ preset brand logos (WhatsApp, Telegram, Instagram, GitHub, Bitcoin, etc.)
-- Logo size, border radius, padding, and background control
-- Auto-selects brand logo when switching QR types
-
-### Templates
-- 20 curated preset templates
-- Save unlimited custom templates (stored locally)
-- Export/import templates as JSON
-
-### Projects
-- Auto-save every QR you generate
-- Manual save with custom names
-- Tags, search, pin, multi-select
-- Two categories: Saved and Auto-saved
-
-### Export
-PNG, JPG, SVG (vector), WebP, 2× and 4× high-res, PDF
-
-### Scanner
-- Live camera scanning with jsQR
-- Scan from image file
-- Flashlight support
-- Auto-detects QR type
-
-### Batch Generator
-- Generate up to 200 QR codes at once
-- Apply any saved template
-- Download all as ZIP
-
-### Settings
-- Light / Dark / System theme
-- Custom accent color
-- Default size, format, error correction
-- Full data import/export
-- PWA install banner
-
-### PWA
-- Install as a native app on any device
-- Works 100% offline after first load
-- Indexed in app stores
+- **16 QR types** — URL, WiFi, vCard, WhatsApp, Telegram, Instagram, Facebook, YouTube, X/Twitter, Email, Phone, SMS, Location, Bitcoin/Crypto, Event
+- **22 dot patterns** — Square, Circle, Diamond, Star, Heart, Crystal, Hexagon, Raindrop and more
+- **14 eye frame shapes** — Square, Rounded, Circle, Hexagon, Leaf, Chamfered, Pill and more
+- **14 eye inner shapes** — matching the eye frames with same variety
+- **Full color control** — solid, linear/radial gradient, transparent background; per-eye color overrides with gradients
+- **Module gap & eye scale** sliders for fine-tuned spacing
+- **20 brand logos** — WhatsApp, Instagram, GitHub, Bitcoin, Discord, Google, Apple and more
+- **12 frame styles** — Bottom/Top Bar, Rounded Box, Badge, Polaroid, Brackets, Circle, Hexagon
+- **20 curated preset templates**
+- **Batch generator** — up to 200 QR codes at once, download as ZIP
+- **QR Scanner** — camera + image file, with jsQR and native BarcodeDetector
+- **Download formats** — PNG, PNG 2×/4×, SVG, WebP, JPG, PDF; transparent background toggle
+- **Firebase Auth + Realtime DB** — email/password + Google OAuth, cloud sync for projects, templates, settings
+- **ImgBB image hosting** — for bug report screenshots and profile photos
+- **Profile page** — banner, avatar (with Cropper.js 1:1 crop), bio, website, project/template/issue history
+- **Bug report system** — with Firebase DB storage, up to 5 images per report
+- **Auto-save** — 1 second debounce, saves to localStorage + Firebase
+- **Undo/Redo** — 40-step history
+- **Scanability Score** — 0–100 score with 5 levels and actionable feedback
+- **PWA** — Service Worker, offline-capable, installable
+- **Keyboard shortcuts** — Ctrl+D, Ctrl+Z, D, 1–5 and more
+- **Custom scrollbar, Google Fonts, light/dark mode**
+- **Responsive** — mobile (bottom nav), tablet (top nav), desktop (collapsible sidebar)
 
 ---
 
-## Getting Started
+## 🗂️ Project Structure
 
-No installation needed. Just clone and open.
+```
+qr-prism/
+├── index.html              # Main app shell
+├── docs.html               # Standalone documentation page
+├── manifest.json           # PWA manifest
+├── sw.js                   # Service Worker (cache-first)
+│
+├── assets/                 # Brand assets (SVG + PNG)
+│   ├── logo-light.svg      # Logo icon for dark backgrounds
+│   ├── logo-dark.svg       # Logo icon for light backgrounds
+│   ├── logo&name-light.svg # Full logo for dark backgrounds
+│   ├── logo&name-dark.svg  # Full logo for light backgrounds
+│   ├── banner.svg          # App banner
+│   └── ...
+│
+├── icons/                  # PWA icons (72–512px)
+│   └── icon.svg
+│
+├── css/
+│   └── style.css           # All styles (2800 lines)
+│
+├── designs/                # Design data arrays
+│   ├── patterns.js         # 22 dot module patterns
+│   ├── eye-frames.js       # 14 eye frame shapes
+│   ├── eye-inners.js       # 14 eye inner shapes
+│   ├── frames.js           # 12 outer frame designs
+│   └── preset-templates.js # 20 curated presets
+│
+└── js/                     # App modules
+    ├── firebase.js         # Firebase config, Auth, ImgBB upload, cloud sync
+    ├── logos.js            # 20 brand logo SVGs
+    ├── state.js            # Global S state, SETTINGS, QR types, forms, URI builders
+    ├── qr-engine.js        # Canvas QR rendering, patterns, gradients, frames
+    ├── ui.js               # UI rendering: grids, Pickr, syncAllUI, profile page
+    ├── app.js              # Boot, mode switching, modals, toasts, keyboard shortcuts
+    ├── projects.js         # Auto-save, manual save, project CRUD, export/import
+    ├── templates.js        # Template save/load/delete, batch template list
+    ├── settings.js         # Settings page render, PWA banner, clear data
+    ├── scanner.js          # Camera scanner, image file scan, BarcodeDetector
+    ├── batch.js            # Batch QR generation, per-item actions, ZIP download
+    ├── download.js         # PNG/JPG/SVG/WebP/2×/4×/PDF export, transparent BG
+    └── report.js           # (see ui.js — report form handled there)
+```
+
+---
+
+## 🚀 Quick Start
+
+1. Clone or download the repository
+2. Open `index.html` in any modern browser
+3. No build step, no dependencies to install
 
 ```bash
 git clone https://github.com/muhtasim-rahman/qr-prism.git
 cd qr-prism
-open index.html
-```
-
-Or deploy to GitHub Pages: **Settings → Pages → Deploy from main branch root.**
-
----
-
-## Project Structure
-
-```
-qr-prism/
-├── index.html                  ← Single-page app shell
-├── manifest.json               ← PWA manifest
-├── sw.js                       ← Service worker (offline cache)
-├── README.md                   ← This file
-│
-├── css/
-│   └── style.css               ← All styling, dark/light, responsive
-│
-├── js/
-│   ├── state.js                ← Global state S{}, SETTINGS{}, QR types & URI builders
-│   ├── app.js                  ← Boot, mode switching, keyboard shortcuts, toasts
-│   ├── ui.js                   ← Rendering: grids, tabs, accordion, profile
-│   ├── qr-engine.js            ← Canvas QR renderer (patterns, eyes, logo, frame)
-│   ├── download.js             ← PNG/JPG/SVG/WebP/2x/4x/PDF export
-│   ├── templates.js            ← Save/load/export/import user templates
-│   ├── projects.js             ← Auto-save + manual projects, cards, tags
-│   ├── settings.js             ← Settings page with full persistence
-│   ├── scanner.js              ← Camera scanner + image scan
-│   ├── batch.js                ← Batch generation + ZIP download
-│   ├── logos.js                ← Brand logo definitions
-│   └── report.js               ← Bug report form
-│
-├── designs/
-│   ├── patterns.js             ← 20+ dot pattern draw functions
-│   ├── eye-frames.js           ← 12 eye frame draw functions
-│   ├── eye-inners.js           ← 12 eye inner draw functions
-│   ├── frames.js               ← 10 QR frame draw functions
-│   └── preset-templates.js     ← 20 preset template styles
-│
-├── assets/
-│   ├── logos/                  ← Drop brand SVG/PNG files here (filename = logo ID)
-│   └── preview.jpg             ← OG image for SEO (replace with your own)
-│
-└── icons/
-    ├── icon-192.png            ← PWA icon
-    ├── icon-512.png            ← PWA icon
-    └── maskable-512.png        ← PWA maskable icon
+# Open index.html in browser, or serve with any static server:
+npx serve .
 ```
 
 ---
 
-## Keyboard Shortcuts
+## 🔥 Firebase Setup
 
-| Shortcut | Action |
-|----------|--------|
+To enable cloud sync and bug reports:
+
+1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
+2. Enable **Email/Password** and **Google** in Authentication
+3. Enable **Realtime Database**
+4. Update `js/firebase.js` with your project config
+5. Set Realtime Database rules:
+
+```json
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid"
+      }
+    },
+    "reports": {
+      ".read": false,
+      "$reportId": {
+        ".write": "auth != null"
+      }
+    }
+  }
+}
+```
+
+---
+
+## 📦 CDN Dependencies
+
+All loaded from CDN — no local installation needed:
+
+| Library | Version | Purpose |
+|---------|---------|---------|
+| [qrcode.js](https://github.com/davidshimjs/qrcodejs) | 1.0.0 | QR matrix generation |
+| [jsQR](https://github.com/cozmo/jsQR) | 1.4.0 | QR camera scanning |
+| [JSZip](https://stuk.github.io/jszip/) | 3.10.1 | Batch ZIP download |
+| [Pickr](https://github.com/Simonwep/pickr) | latest | Color picker |
+| [Cropper.js](https://fengyuanchen.github.io/cropperjs/) | 1.6.2 | Profile photo crop |
+| [Font Awesome](https://fontawesome.com) | 6.5.0 | Icons |
+| [Firebase](https://firebase.google.com) | 9.23.0 | Auth + Realtime DB |
+| Google Fonts | — | Outfit, Poppins, DM Sans, Space Grotesk, Fira Code |
+
+---
+
+## 🖼️ Asset Naming Convention
+
+> ⚠️ **Important:** File name suffixes are intentionally "reversed" from what you might expect:
+> - Files ending in `-dark` → use on **light backgrounds** (the design itself is dark-colored)
+> - Files ending in `-light` → use on **dark backgrounds** (the design itself is light-colored)
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
 | `Ctrl+D` | Download PNG |
-| `Ctrl+S` | Save Template |
-| `Ctrl+C` | Copy QR to Clipboard |
-| `Ctrl+Z` | Undo |
-| `Ctrl+Y` | Redo |
-| `D` | Toggle Dark / Light Mode |
-| `1` | Switch to Generate |
-| `2` | Switch to Projects |
-| `3` | Switch to Scan |
-| `4` | Switch to Batch |
-| `5` | Switch to Settings |
-| `?` | Show Shortcuts |
-| `Esc` | Close Modal |
+| `Ctrl+S` | Save as Template |
+| `Ctrl+C` | Copy QR to clipboard |
+| `Ctrl+Z` / `Ctrl+Y` | Undo / Redo |
+| `D` | Toggle dark/light mode |
+| `1`–`5` | Switch mode tabs |
+| `?` | Show shortcuts |
+| `Esc` | Close modal |
 
 ---
 
-## QR Types
+## 📄 License
 
-| Type | Format | Example |
-|------|--------|---------|
-| URL | Direct URL | `https://example.com` |
-| Text | Plain text | `Hello World` |
-| Email | `mailto:` | `mailto:you@email.com` |
-| Phone | `tel:` | `tel:+8801234567890` |
-| SMS | `SMSTO:` | `SMSTO:+880...:message` |
-| WiFi | `WIFI:` | `WIFI:T:WPA;S:name;P:pass;H:false;;` |
-| vCard | `BEGIN:VCARD` | Full contact card |
-| WhatsApp | `wa.me` link | `https://wa.me/880...` |
-| Telegram | `t.me` link | `https://t.me/username` |
-| Location | `geo:` | `geo:23.81,90.41` |
-| Instagram | Direct URL | `https://instagram.com/user` |
-| Facebook | Direct URL | `https://facebook.com/page` |
-| YouTube | Direct URL | `https://youtube.com/@channel` |
-| Twitter/X | Direct URL | `https://x.com/user` |
-| Crypto | Coin URI | `bitcoin:address?amount=0.01` |
-| Calendar | `BEGIN:VEVENT` | Full event data |
+MIT License — © 2025 [Muhtasim Rahman (Turzo)](https://mdturzo.odoo.com)
 
 ---
 
-## Tech Stack
+## 📬 Contact
 
-Pure web platform — no build step, no npm, no frameworks.
-
-| Library | Purpose |
-|---------|---------|
-| [qrcode.js](https://github.com/davidshimjs/qrcodejs) | QR code generation |
-| [jsQR](https://github.com/cozmo/jsQR) | QR code scanning |
-| [JSZip](https://github.com/Stuk/jszip) | ZIP download for batch |
-| [Pickr](https://github.com/Simonwep/pickr) | Color picker |
-| [Marked](https://github.com/markedjs/marked) | Markdown rendering |
-| [Font Awesome 6](https://fontawesome.com) | Icons |
-| [Poppins + Fira Code](https://fonts.google.com) | Typography |
-
----
-
-## Contributing
-
-Pull requests are welcome. For major changes, please open an issue first.
-
-1. Fork the repo
-2. Create your branch: `git checkout -b feature/your-feature`
-3. Commit: `git commit -m "feat: your feature"`
-4. Push and open a Pull Request
-
----
-
-## License
-
-MIT License © 2025 [Muhtasim Rahman (Turzo)](https://mdturzo.odoo.com)
-
----
-
-<div align="center">
-
-Free, open source, forever. If it helped you, drop a ⭐ star!
-
-[GitHub](https://github.com/muhtasim-rahman) · [Portfolio](https://mdturzo.odoo.com)
-
-</div>
+- Email: [qrprism@gmail.com](mailto:qrprism@gmail.com)
+- Website: [mdturzo.odoo.com](https://mdturzo.odoo.com)
+- GitHub: [@muhtasim-rahman](https://github.com/muhtasim-rahman)

@@ -1,66 +1,88 @@
 // =========================================================
-// TEMPLATES.JS — QR Prism v2.7
-// Save / load / export / import user templates
+// TEMPLATES.JS — QR Prism v2.8
+// Save / load / delete / export / manage user templates
 // Author: Muhtasim Rahman (Turzo) · https://mdturzo.odoo.com
 // =========================================================
 
 const TMPL_KEY = 'qrp_templates';
 
+// ══════════════════════════════════════════════════════════
+// LOAD / SAVE  (localStorage + Firebase)
+// ══════════════════════════════════════════════════════════
 function loadUserTemplates() {
-  try { return JSON.parse(localStorage.getItem(TMPL_KEY) || '[]'); }
-  catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem(TMPL_KEY) || '[]'); } catch { return []; }
 }
 
 function saveUserTemplatesData(templates) {
-  try { localStorage.setItem(TMPL_KEY, JSON.stringify(templates)); }
-  catch(e) { showToast('Storage error', 'error'); }
+  try {
+    localStorage.setItem(TMPL_KEY, JSON.stringify(templates));
+    if (typeof FB_USER !== 'undefined' && FB_USER && typeof fbDB !== 'undefined') {
+      fbDB.ref(`users/${FB_USER.uid}/templates`).set(templates).catch(() => {});
+    }
+  } catch {
+    showToast('Storage error — template not saved', 'error');
+  }
 }
 
+// ══════════════════════════════════════════════════════════
+// SAVE TEMPLATE  (from modal)
+// ══════════════════════════════════════════════════════════
 function saveTemplate() {
-  const name = document.getElementById('save-tmpl-name')?.value.trim();
+  const nameEl = document.getElementById('save-tmpl-name');
+  const name   = nameEl?.value.trim();
   if (!name) { showToast('Please enter a template name', 'error'); return; }
 
-  const design = {
-    pattern: S.pattern, eyeFrame: S.eyeFrame, eyeInner: S.eyeInner,
-    fgColor: S.fgColor, bgColor: S.bgColor, transparent: S.transparent,
-    gradient: S.gradient, gType: S.gType, gc1: S.gc1, gc2: S.gc2, gAngle: S.gAngle,
-    customMarker: S.customMarker, mbColor: S.mbColor, mcColor: S.mcColor,
-    customEF: S.customEF, efColor: S.efColor, customEI: S.customEI, eiColor: S.eiColor,
-    logoKey: S.logoKey, logoSize: S.logoSize, logoBR: S.logoBR,
-    logoPad: S.logoPad, logoPadColor: S.logoPadColor, logoRemoveBG: S.logoRemoveBG,
-    frame: S.frame, frameLabel: S.frameLabel, frameFont: S.frameFont,
-    frameTSize: S.frameTSize, frameLabelColor: S.frameLabelColor, frameColor: S.frameColor,
+  // Capture all design settings (same keys as getCurrentDesign in projects.js)
+  const settings = typeof getCurrentDesign === 'function'
+    ? getCurrentDesign()
+    : { pattern: S.pattern, eyeFrame: S.eyeFrame, eyeInner: S.eyeInner,
+        fgColor: S.fgColor, bgMode: S.bgMode, bgColor: S.bgColor };
+
+  // Capture QR thumbnail
+  let thumbnail = null;
+  const canvas = document.getElementById('qr-canvas');
+  if (canvas && canvas.style.display !== 'none') {
+    try { thumbnail = canvas.toDataURL('image/png', 0.70); } catch {}
+  }
+
+  const tpl = {
+    id:        'tpl_' + Date.now(),
+    name,
+    settings,
+    thumbnail,
+    createdAt: Date.now(),
   };
 
   const templates = loadUserTemplates();
-  templates.unshift({ id: 'tpl_' + Date.now(), name, design, createdAt: Date.now() });
+  templates.unshift(tpl);
   saveUserTemplatesData(templates);
 
   closeModal('save-template-modal');
   renderUserTemplates();
   showToast(`Template "${name}" saved!`, 'success');
+
+  // Update badge
+  const badge = document.getElementById('tmpl-badge');
+  if (badge) { badge.textContent = templates.length; badge.style.display = ''; }
 }
 
-function applyUserTemplate(idx) {
+// ══════════════════════════════════════════════════════════
+// DELETE TEMPLATE
+// ══════════════════════════════════════════════════════════
+function deleteUserTemplate(idOrIdx) {
   const templates = loadUserTemplates();
+  // Accept either index (number) or id (string)
+  const idx = typeof idOrIdx === 'number'
+    ? idOrIdx
+    : templates.findIndex(t => t.id === idOrIdx);
   const t = templates[idx];
   if (!t) return;
-  pushUndo();
-  Object.assign(S, t.design);
-  syncAllUI();
-  if (typeof updatePickrColors === 'function') updatePickrColors();
-  schedRender();
-  showToast(`Template "${t.name}" applied`, 'success');
-}
 
-function deleteUserTemplate(idx) {
-  const templates = loadUserTemplates();
-  const t = templates[idx];
-  if (!t) return;
   showConfirm({
-    title: 'Delete Template',
-    msg: `Delete "${t.name}"?`,
-    okLabel: 'Delete', okClass: 'btn-danger',
+    title:   'Delete Template',
+    msg:     `Delete "${t.name}"? This cannot be undone.`,
+    okLabel: 'Delete',
+    okClass: 'btn-danger',
     onConfirm: () => {
       templates.splice(idx, 1);
       saveUserTemplatesData(templates);
@@ -71,90 +93,146 @@ function deleteUserTemplate(idx) {
   });
 }
 
+// ══════════════════════════════════════════════════════════
+// TEMPLATES MANAGE PAGE
+// ══════════════════════════════════════════════════════════
+function renderTemplatesManage() {
+  const container = document.getElementById('tmpl-manage-list');
+  if (!container) return;
+
+  const templates = loadUserTemplates();
+
+  if (!templates.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <i class="fa-solid fa-bookmark"></i>
+        <p>No saved templates yet.</p>
+        <button class="btn btn-outline btn-sm" onclick="switchMode('gen')">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Design &amp; Save a Template
+        </button>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="template-grid" id="tmpl-manage-grid">
+      ${templates.map((t, i) => `
+        <div class="template-item" style="position:relative;">
+          <div class="tmpl-thumb" onclick="applyUserTemplate(${i})" title="Apply template">
+            ${t.thumbnail
+              ? `<img src="${t.thumbnail}" alt="${escHtml(t.name)}">`
+              : `<canvas width="64" height="64" id="tmm-cv-${i}"></canvas>`}
+          </div>
+          <div class="tmpl-label">${escHtml(t.name)}</div>
+          <div style="display:flex;gap:4px;padding:4px 6px;background:var(--surface2);border-top:1px solid var(--border2);">
+            <button class="batch-item-btn" onclick="applyUserTemplate(${i})" title="Apply">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Apply
+            </button>
+            <button class="batch-item-btn" style="color:var(--danger);" onclick="deleteUserTemplate(${i})" title="Delete">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+
+  // Draw thumbnails for those without a saved one
+  requestAnimationFrame(() => {
+    templates.forEach((t, i) => {
+      if (t.thumbnail) return;
+      const cv = document.getElementById(`tmm-cv-${i}`);
+      if (cv && typeof drawFallbackThumb === 'function') drawFallbackThumb(cv);
+    });
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════════════════════
 function exportTemplates() {
   const templates = loadUserTemplates();
-  const data = {
-    _type: 'qrp_templates', _ver: '2.7',
-    _date: new Date().toISOString(),
-    _copy: '© QR Prism by Muhtasim Rahman (Turzo)',
+  if (!templates.length) { showToast('No templates to export', 'info'); return; }
+  exportJSON({
+    _type:     'qrp_templates', _ver: '2.8',
+    _date:     new Date().toISOString(),
+    _app:      'QR Prism by Muhtasim Rahman (Turzo)',
     templates,
-  };
-  exportJSON(data, buildExportFilename('templates', templates.length));
+  }, buildExportFilename('templates', templates.length));
   showToast(`Exported ${templates.length} template(s)`, 'success');
 }
 
-// ── Modal openers ────────────────────────────────────────
-function openSaveTemplateModal() {
-  const nameEl = document.getElementById('save-tmpl-name');
-  if (nameEl) nameEl.value = '';
-  openModal('save-template-modal');
-}
+// ══════════════════════════════════════════════════════════
+// BATCH TEMPLATE LIST  (in Batch Generator page)
+// ══════════════════════════════════════════════════════════
+let _batchSelectedTemplate = null;  // { settings }
 
-function openSaveProjectModal() {
-  const nameEl = document.getElementById('save-proj-name');
-  if (nameEl) nameEl.value = '';
-  openModal('save-project-modal');
-}
+function renderBatchTemplateList() {
+  // App preset templates
+  const appGrid = document.getElementById('batch-app-template-list');
+  if (appGrid && typeof PRESET_TEMPLATES !== 'undefined') {
+    appGrid.innerHTML = PRESET_TEMPLATES.map((t, i) => `
+      <div class="template-item${_batchSelectedTemplate?.source === 'preset' && _batchSelectedTemplate?.idx === i ? ' active' : ''}"
+           onclick="selectBatchTemplate('preset', ${i})" title="${escHtml(t.name)}">
+        <div class="tmpl-thumb">
+          <canvas width="64" height="64" id="bapt-${i}"></canvas>
+        </div>
+        <div class="tmpl-label">${escHtml(t.name)}</div>
+      </div>`).join('');
+    requestAnimationFrame(() => renderTemplateThumbnails(PRESET_TEMPLATES, 'bapt-'));
+  }
 
-// ── Export helpers ───────────────────────────────────────
-function buildExportFilename(type, count) {
-  const now = new Date();
-  const d = `${String(now.getDate()).padStart(2,'0')}-${String(now.getMonth()+1).padStart(2,'0')}-${now.getFullYear()}`;
-  const t = `${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`;
-  return `qr-prism_${type}_${count}_${d}_${t}.json`;
-}
+  // User templates
+  const userList = document.getElementById('batch-template-list');
+  if (!userList) return;
 
-function exportJSON(data, filename) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
+  const templates = loadUserTemplates();
+  if (!templates.length) {
+    userList.innerHTML = '<p style="font-size:.76rem;color:var(--text3);">No saved templates yet.</p>';
+    return;
+  }
 
-// ── Import ───────────────────────────────────────────────
-function handleImportFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const data = JSON.parse(e.target.result);
-      if (data._type === 'qrp_templates' || data.templates) {
-        const tmpl = data.templates || [];
-        const existing = loadUserTemplates();
-        const ids = new Set(existing.map(t => t.id));
-        let added = 0;
-        tmpl.forEach(t => { if (!ids.has(t.id)) { existing.push(t); added++; } });
-        saveUserTemplatesData(existing);
-        renderUserTemplates();
-        renderTemplatesManage();
-        showToast(`Imported ${added} template(s)`, 'success');
-      } else if (data._type === 'qrp_projects' || data.projects) {
-        const proj = data.projects || [];
-        const existing = JSON.parse(localStorage.getItem('qrp_projects') || '[]');
-        const ids = new Set(existing.map(p => p.id));
-        let added = 0;
-        proj.forEach(p => { if (!ids.has(p.id)) { existing.push(p); added++; } });
-        localStorage.setItem('qrp_projects', JSON.stringify(existing));
-        renderProjects(); updateProjectCounts();
-        showToast(`Imported ${added} project(s)`, 'success');
-      } else if (data._type === 'qrp_all') {
-        if (data.projects)  { localStorage.setItem('qrp_projects', JSON.stringify(data.projects)); }
-        if (data.templates) { localStorage.setItem('qrp_templates', JSON.stringify(data.templates)); }
-        if (data.profile)   { localStorage.setItem('qrp_profile', JSON.stringify(data.profile)); syncProfileUI(); }
-        if (data.settings)  { Object.assign(SETTINGS, data.settings); saveSettingsData(); applyTheme(SETTINGS.theme); }
-        showToast('All data imported!', 'success');
-      } else {
-        showToast('Unknown file format', 'error');
+  userList.innerHTML = `
+    <div class="template-grid">
+      ${templates.map((t, i) => `
+        <div class="template-item${_batchSelectedTemplate?.source === 'user' && _batchSelectedTemplate?.idx === i ? ' active' : ''}"
+             onclick="selectBatchTemplate('user', ${i})" title="${escHtml(t.name)}">
+          <div class="tmpl-thumb">
+            ${t.thumbnail
+              ? `<img src="${t.thumbnail}" alt="${escHtml(t.name)}">`
+              : `<canvas width="64" height="64" id="but-${i}"></canvas>`}
+          </div>
+          <div class="tmpl-label">${escHtml(t.name)}</div>
+        </div>`).join('')}
+    </div>`;
+
+  requestAnimationFrame(() => {
+    templates.forEach((t, i) => {
+      if (!t.thumbnail) {
+        const cv = document.getElementById(`but-${i}`);
+        if (cv && typeof drawFallbackThumb === 'function') drawFallbackThumb(cv);
       }
-    } catch(err) {
-      showToast('Invalid JSON file', 'error');
-    }
-    input.value = '';
-    closeModal('import-modal');
-  };
-  reader.readAsText(file);
+    });
+  });
+}
+
+function selectBatchTemplate(source, idx) {
+  _batchSelectedTemplate = { source, idx };
+  // Update active state
+  document.querySelectorAll('#batch-app-template-list .template-item, #batch-template-list .template-item')
+    .forEach(el => el.classList.remove('active'));
+
+  const gridId = source === 'preset' ? 'batch-app-template-list' : 'batch-template-list';
+  const grid   = document.getElementById(gridId);
+  if (grid) {
+    const items = grid.querySelectorAll('.template-item');
+    if (items[idx]) items[idx].classList.add('active');
+  }
+  showToast('Template selected for batch', 'success');
+}
+
+function getSelectedBatchSettings() {
+  if (!_batchSelectedTemplate) return null;
+  if (_batchSelectedTemplate.source === 'preset') {
+    return PRESET_TEMPLATES[_batchSelectedTemplate.idx]?.settings || null;
+  }
+  return loadUserTemplates()[_batchSelectedTemplate.idx]?.settings || null;
 }

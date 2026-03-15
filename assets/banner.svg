@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="white"/>
+  <rect x="0" y="0" width="460" height="630" fill="#F8FAFC"/>
+  <g transform="matrix(5.2, 0, 0, 5.2, 780.26886, 48.740379)" opacity="0.04">
+    <rect x="20" y="20" width="60" height="60" rx="14" stroke="#1E1B4B" stroke-width="12"/>
+    <rect x="42" y="42" width="16" height="16" rx="3" fill="#1E1B4B"/>
+    <path d="M72 72 L88 88" stroke="#1E1B4B" stroke-width="14" stroke-linecap="round"/>
+  </g>
+  <circle cx="230" cy="315" r="200" fill="#EEF2FF" opacity="0.5"/>
+  <circle cx="230" cy="315" r="155" fill="#EEF2FF"/>
+  <g transform="matrix(4.2, 0, 0, 4.2, 24.465729, 108.358871)">
+    <rect x="20" y="20" width="60" height="60" rx="14" stroke="#1E1B4B" stroke-width="10"/>
+    <rect x="42" y="42" width="16" height="16" rx="3" fill="#1E1B4B"/>
+    <path d="M72 72 L88 88" stroke="#818CF8" stroke-width="12" stroke-linecap="round"/>
+  </g>
+  <text x="175" y="580" font-family="sans-serif" font-size="12" fill="#94A3B8" letter-spacing="5" font-weight="600" style="white-space: pre;">QR PRISM</text>
+  <g transform="matrix(1, 0, 0, 1, 510, 107.062134)">
+    <rect width="264.533" height="34" rx="17" fill="#EEF2FF" style="" y="-8.881"/>
+    <text x="21.952" y="12.268" font-family="sans-serif" font-size="14" fill="#4F46E5" font-weight="600" style="white-space: pre; font-size: 14px;">✦ Professional QR Code Generator</text>
+    <text x="0" y="105" font-family="sans-serif" font-size="86" font-weight="800" fill="#1E1B4B" style="white-space: pre;">QR <tspan fill="#818CF8">Prism</tspan></text>
+    <text x="0" y="152" font-family="sans-serif" font-size="24" font-weight="600" fill="#475569" style="white-space: pre;">Scan. Customize. Generate — Instantly.</text>
+    <text x="0" y="188" font-family="sans-serif" font-size="17" fill="#64748B" style="white-space: pre;">Professional QR codes with custom colors, logos &amp; styles.</text>
+    <text x="0" y="215" font-family="sans-serif" font-size="14" fill="#94A3B8" font-weight="400" style="white-space: pre;">Supports: URL · WiFi · WhatsApp · Text · Email · Phone · Location</text>
+    <g transform="translate(0, 260)">
+      <rect width="244.626" height="50.421" rx="30" fill="#4F46E5" style="" y="-19.158"/>
+      <text x="125" y="37" font-family="sans-serif" font-size="18" fill="white" font-weight="600" text-anchor="middle" style="white-space: pre;" transform="matrix(1.424838, 0, 0, 1.331764, -59.130531, -37.332771)">✦ Generate now</text>
+    </g>
+    <g transform="matrix(1, 0, 0, 1, 0, 319.933014)">
+      <rect x="0" y="0" width="105" height="34" rx="8" stroke="#E2E8F0" fill="#F8FAFC"/>
+      <text x="52.5" y="22" font-family="sans-serif" font-size="13" fill="#64748B" text-anchor="middle" style="white-space: pre;">✓ Free to use</text>
+      <rect x="115" y="0" width="105" height="34" rx="8" stroke="#E2E8F0" fill="#F8FAFC"/>
+      <text x="167.5" y="22" font-family="sans-serif" font-size="13" fill="#64748B" text-anchor="middle" style="white-space: pre;">✓ Cloud Sync</text>
+      <rect x="230" y="0" width="115" height="34" rx="8" stroke="#E2E8F0" fill="#F8FAFC"/>
+      <text x="287.5" y="22" font-family="sans-serif" font-size="13" fill="#64748B" text-anchor="middle" style="white-space: pre;">✓ SVG &amp; PNG</text>
+    </g>
+    <g transform="matrix(1, 0, 0, 1, 0, 389.933014)">
+      <circle cx="8" cy="-5" r="5" fill="#C7D2FE" opacity="0.6"/>
+      <text x="25" y="0" font-family="sans-serif" font-size="16" fill="#4F46E5" font-weight="500" style="white-space: pre;">https://qr-prism.web.app</text>
+      <text x="0" y="30" font-family="sans-serif" font-size="14" fill="#94A3B8" style="white-space: pre;">Start creating for free today — no account needed.</text>
+    </g>
+  </g>
+  <g transform="translate(50, 50)" fill="#DDE3F5">
+    <circle cx="0" cy="0" r="4"/>
+    <circle cx="25" cy="0" r="4"/>
+    <circle cx="50" cy="0" r="4"/>
+    <circle cx="0" cy="25" r="4"/>
+    <circle cx="25" cy="25" r="4"/>
+    <circle cx="50" cy="25" r="4" opacity="0.5"/>
+    <circle cx="0" cy="50" r="4"/>
+    <circle cx="25" cy="50" r="4" opacity="0.3"/>
+  </g>
+  <g transform="translate(1120, 60)" fill="#E2E8F0">
+    <circle cx="0" cy="0" r="3.5"/>
+    <circle cx="25" cy="0" r="3.5"/>
+    <circle cx="0" cy="25" r="3.5"/>
+    <circle cx="25" cy="25" r="3.5"/>
+    <circle cx="0" cy="50" r="3.5"/>
+    <circle cx="25" cy="50" r="3.5"/>
+  </g>
+  <text x="1140" y="580" font-family="sans-serif" font-size="15" fill="#4F46E5" font-weight="600" text-anchor="end" style="white-space: pre;">Try it free →</text>
+</svg>

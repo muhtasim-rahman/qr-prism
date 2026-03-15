@@ -1,6 +1,7 @@
 // =========================================================
-// DOWNLOAD.JS — QR Prism v2.7
-// PNG, JPG, SVG, WebP, 2x, 4x, PDF export
+// DOWNLOAD.JS — QR Prism v2.8
+// PNG, JPG, SVG, WebP, 2×, 4×, PDF export
+// Transparent background support per S.dlTransparent flag
 // Author: Muhtasim Rahman (Turzo) · https://mdturzo.odoo.com
 // =========================================================
 
@@ -11,52 +12,156 @@ function downloadQR(format) {
     return;
   }
 
-  const filename = 'qr-prism_' + (S.activeType || 'qr') + '_' + Date.now();
+  // Close dropdown
+  document.getElementById('dl-dropdown')?.classList.remove('open');
+
+  // Transparent mode: if S.dlTransparent is on, skip bg fill for formats that support it
+  const useTransparent = S.dlTransparent && ['png', 'png2x', 'png4x', 'svg', 'webp'].includes(format);
+
+  const base = `qrprism_${S.activeType || 'qr'}_${Date.now()}`;
 
   switch (format) {
     case 'png':
-      downloadCanvasAs(canvas, filename + '.png', 'image/png', 1);
+      _dlPNG(canvas, base + '.png', 1, useTransparent);
       break;
-
     case 'jpg':
-      downloadCanvasWithBG(canvas, filename + '.jpg', 'image/jpeg', 0.92);
+      _dlJPG(canvas, base + '.jpg');          // JPG never transparent
       break;
-
     case 'webp':
-      downloadCanvasAs(canvas, filename + '.webp', 'image/webp', 0.92);
+      _dlWebP(canvas, base + '.webp', useTransparent);
       break;
-
     case 'png2x':
-      downloadScaled(canvas, filename + '_2x.png', 2);
+      _dlScaled(canvas, base + '_2x.png', 2, useTransparent);
       break;
-
     case 'png4x':
-      downloadScaled(canvas, filename + '_4x.png', 4);
+      _dlScaled(canvas, base + '_4x.png', 4, useTransparent);
       break;
-
     case 'svg':
-      downloadAsSVG(canvas, filename + '.svg');
+      _dlSVG(canvas, base + '.svg', useTransparent);
       break;
-
     case 'pdf':
-      downloadAsPDF(canvas, filename + '.pdf');
+      _dlPDF(canvas, base + '.pdf');
       break;
-
     default:
-      downloadCanvasAs(canvas, filename + '.png', 'image/png', 1);
+      _dlPNG(canvas, base + '.png', 1, useTransparent);
   }
-  // Close dropdown
-  document.getElementById('dl-dropdown')?.classList.remove('open');
 }
 
-function downloadCanvasAs(canvas, name, mime, quality) {
-  const url = canvas.toDataURL(mime, quality);
+// ── PNG ────────────────────────────────────────────────────
+function _dlPNG(canvas, name, quality = 1, transparent = false) {
+  const src = transparent ? canvas : _withWhiteBG(canvas);
+  const url = src.toDataURL('image/png', quality);
   triggerDownload(url, name);
-  showToast('Downloading ' + name.split('.').pop().toUpperCase(), 'success');
+  showToast('Downloaded PNG', 'success');
 }
 
-function downloadCanvasWithBG(canvas, name, mime, quality) {
-  // JPEG doesn't support transparency — fill white background
+// ── JPG (always white bg) ──────────────────────────────────
+function _dlJPG(canvas, name) {
+  const url = _withWhiteBG(canvas).toDataURL('image/jpeg', 0.93);
+  triggerDownload(url, name);
+  showToast('Downloaded JPG', 'success');
+}
+
+// ── WebP ───────────────────────────────────────────────────
+function _dlWebP(canvas, name, transparent = false) {
+  const src = transparent ? canvas : _withWhiteBG(canvas);
+  const url = src.toDataURL('image/webp', 0.92);
+  triggerDownload(url, name);
+  showToast('Downloaded WebP', 'success');
+}
+
+// ── Scaled PNG (2× / 4×) ──────────────────────────────────
+function _dlScaled(canvas, name, scale, transparent = false) {
+  const src = transparent ? canvas : _withWhiteBG(canvas);
+  const tmp = document.createElement('canvas');
+  tmp.width  = src.width  * scale;
+  tmp.height = src.height * scale;
+  const ctx  = tmp.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(src, 0, 0, tmp.width, tmp.height);
+  const url = tmp.toDataURL('image/png');
+  triggerDownload(url, name);
+  showToast(`Downloaded ${scale}× PNG`, 'success');
+}
+
+// ── SVG (embeds PNG data URL as <image>) ───────────────────
+function _dlSVG(canvas, name, transparent = false) {
+  const src = transparent ? canvas : _withWhiteBG(canvas);
+  const w   = src.width;
+  const h   = src.height;
+  const url = src.toDataURL('image/png');
+
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  ${transparent ? '' : `<rect width="${w}" height="${h}" fill="#ffffff"/>`}
+  <image width="${w}" height="${h}" xlink:href="${url}"/>
+</svg>`;
+
+  const blob   = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const objUrl = URL.createObjectURL(blob);
+  triggerDownload(objUrl, name);
+  setTimeout(() => URL.revokeObjectURL(objUrl), 2000);
+  showToast('Downloaded SVG', 'success');
+}
+
+// ── PDF (print dialog approach) ───────────────────────────
+function _dlPDF(canvas, name) {
+  // Build a printable page that auto-opens the print dialog
+  const src = _withWhiteBG(canvas);
+  const url = src.toDataURL('image/png');
+  const w   = Math.min(src.width, 800);
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>QR Prism — Print</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 100vh; background: #fff;
+      font-family: 'Poppins', system-ui, sans-serif;
+      padding: 32px;
+    }
+    img { max-width: ${w}px; width: 100%; height: auto; display: block; }
+    p   { margin-top: 16px; font-size: 11pt; color: #555; }
+    @media print {
+      body { padding: 0; justify-content: flex-start; }
+      p { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <img src="${url}" alt="QR Code">
+  <p>Generated by QR Prism · <a href="https://muhtasim-rahman.github.io/qr-prism/">qrprism.app</a></p>
+  <script>window.addEventListener('load', () => { setTimeout(() => window.print(), 400); });<\/script>
+</body>
+</html>`;
+
+  const blob   = new Blob([html], { type: 'text/html' });
+  const objUrl = URL.createObjectURL(blob);
+  const win    = window.open(objUrl, '_blank', 'noopener');
+
+  if (!win) {
+    // Popup blocked — fall back to PNG
+    _dlPNG(canvas, name.replace('.pdf', '.png'), 1, false);
+    showToast('Popup blocked — downloaded PNG instead', 'warning');
+  } else {
+    showToast('Print dialog opened', 'info');
+  }
+
+  setTimeout(() => URL.revokeObjectURL(objUrl), 8000);
+}
+
+// ══════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════
+
+/** Returns a new canvas with white background + original drawn on top */
+function _withWhiteBG(canvas) {
   const tmp = document.createElement('canvas');
   tmp.width  = canvas.width;
   tmp.height = canvas.height;
@@ -64,76 +169,5 @@ function downloadCanvasWithBG(canvas, name, mime, quality) {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, tmp.width, tmp.height);
   ctx.drawImage(canvas, 0, 0);
-  const url = tmp.toDataURL(mime, quality);
-  triggerDownload(url, name);
-  showToast('Downloading JPG', 'success');
-}
-
-function downloadScaled(canvas, name, scale) {
-  const tmp  = document.createElement('canvas');
-  tmp.width  = canvas.width  * scale;
-  tmp.height = canvas.height * scale;
-  const ctx  = tmp.getContext('2d');
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(canvas, 0, 0, tmp.width, tmp.height);
-  const url = tmp.toDataURL('image/png');
-  triggerDownload(url, name);
-  showToast('Downloading ' + scale + '× PNG', 'success');
-}
-
-function downloadAsSVG(canvas, name) {
-  const w   = canvas.width;
-  const h   = canvas.height;
-  const url = canvas.toDataURL('image/png');
-  const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-  width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
-  <image width="${w}" height="${h}" xlink:href="${url}"/>
-</svg>`;
-  const blob = new Blob([svg], { type: 'image/svg+xml' });
-  const objUrl = URL.createObjectURL(blob);
-  triggerDownload(objUrl, name);
-  setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
-  showToast('Downloading SVG', 'success');
-}
-
-function downloadAsPDF(canvas, name) {
-  // Simple PDF using canvas data URL embedded in a PDF-compatible page
-  const w   = canvas.width;
-  const h   = canvas.height;
-  const url = canvas.toDataURL('image/png');
-
-  // Build minimal valid PDF with the image
-  // We use a printable HTML approach as fallback since jsPDF isn't included
-  const html = `<!DOCTYPE html><html><head>
-    <style>
-      * { margin:0; padding:0; }
-      body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:#fff; }
-      img { max-width:100%; max-height:100vh; }
-    </style>
-  </head><body>
-    <img src="${url}" alt="QR Code" style="width:${Math.min(w,595)}px;height:auto;">
-    <script>window.onload=()=>{ window.print(); }</script>
-  </body></html>`;
-
-  const blob   = new Blob([html], { type: 'text/html' });
-  const objUrl = URL.createObjectURL(blob);
-  const win    = window.open(objUrl, '_blank');
-  if (!win) {
-    // Fallback: download PNG
-    downloadCanvasAs(canvas, name.replace('.pdf', '.png'), 'image/png', 1);
-    showToast('PDF blocked — downloading PNG instead', 'warning');
-  } else {
-    showToast('PDF print dialog opened', 'info');
-  }
-  setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
-}
-
-function triggerDownload(url, name) {
-  const a = document.createElement('a');
-  a.href  = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  return tmp;
 }
